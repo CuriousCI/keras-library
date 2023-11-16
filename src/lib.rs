@@ -3,7 +3,7 @@ pub mod tests;
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufReader, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // TODO: use later in threads
 pub fn translate_song() {}
@@ -22,12 +22,10 @@ pub fn umkansanize(source_folder: &str, target_folder: &str) -> HashMap<String, 
     let musical_scores_index: Vec<(&str, &str)> = source_index
         .split('\n')
         .filter_map(|line| line.trim().split_once("\r \r"))
-        // Instead of collecting here, make threads and  send them rx and tx to hashmap later
         .collect();
+    // Instead of collecting here, make threads and  send them rx and tx to hashmap later
 
     let mut songs_durations: HashMap<String, usize> = HashMap::new();
-    let mut songs_paths: Vec<(PathBuf, Vec<u8>)> = vec![];
-    // TODO: set size of songs_paths to musical_scores_index.len()
 
     for (song_name, song_file) in musical_scores_index {
         // TODO: make a thread for each file, pay attention to shared hashmap
@@ -48,76 +46,132 @@ pub fn umkansanize(source_folder: &str, target_folder: &str) -> HashMap<String, 
 
         // TODO: prealloc musical score size, in reality you can't know!
         let mut result = vec![];
-        let mut prev_token1 = 0;
-        let mut token1 = 0; // Works directly with result
-        let mut prev_token2 = 0;
-        let mut prev_token2_sign = 0;
-        let mut token2 = 0; // Works with token1
         let mut song_duration = 0;
-        // let mut previous_note: u8 = 0;
-        // let mut current_note: u8 = 0;
-        // let mut current_base: u8 = 0;
-        // let mut previous_note_count: u8 = 0;
 
-        // if note == 98 || note == 35 {
-        //     current_note = current_base + note;
-        // } else {
-        //     current_base = note;
-        // }
-        //
-        // if current_note != previous_note {
-        //     if previous_note > 99 {
-        //         let offset = if previous_note > 162 { 98 } else { 35 };
-        //         result.push(previous_note - offset);
-        //         result.push(offset);
-        //     } else if previous_note > 0 {
-        //         result.push(previous_note);
-        //     }
-        //     result.push(48 + previous_note_count); // '0' + count
-        //
-        //     // previous_note = current_note;
-        //     previous_note = note;
-        //     duration += previous_note_count as usize;
-        //     previous_note_count = 1;
-        // }
+        enum NoteType {
+            None,
+            Normal,
+            Altered,
+        }
+
+        let mut note_type = NoteType::None;
+        let mut note_value: u8 = 0;
+        let mut note_duration: usize = 0;
+        let mut alterator: u8 = 0;
+
         for staff in musical_score.split(|&byte| byte == 10 as u8) {
             for &note in staff.iter().rev() {
-                let mut checktoken1 = false;
-                if note == 98 || note == 35 {
-                    prev_token2_sign = note;
-                    if prev_token2 != token2 {
-                        checktoken1 = true;
-                    }
-                } else {
-                    token2 = note;
-                    // prev bemolle
+                if note != 35 && note != 98 {
+                    song_duration += 1;
                 }
 
-                if checktoken1 {
-                    // Do token1 thingy
+                match note_type {
+                    NoteType::None => {
+                        note_value = note;
+                        note_duration = 1;
+                        note_type = NoteType::Normal;
+                    }
+                    NoteType::Normal => {
+                        if alterator > 0 {
+                            if note == 35 || note == 98 {
+                                if alterator != note {
+                                    result.push(note_value);
+                                    result.push(alterator);
+                                    result.extend_from_slice(note_duration.to_string().as_bytes());
+
+                                    alterator = note;
+                                    note_duration = 1;
+                                } else {
+                                    note_duration += 1;
+                                }
+
+                                note_type = NoteType::Altered;
+                            } else if note_value != note {
+                                result.push(note_value);
+                                result.push(alterator);
+                                result.extend_from_slice(note_duration.to_string().as_bytes());
+                                result.push(note_value);
+                                result.push(49); // 1 in ASCII
+
+                                note_value = note;
+                                note_duration = 1;
+                                alterator = 0;
+                            } else {
+                                result.push(note_value);
+                                result.push(alterator);
+                                result.extend_from_slice(note_duration.to_string().as_bytes());
+
+                                note_duration = 2;
+                                alterator = 0;
+                            }
+                        } else {
+                            if note == 35 || note == 98 {
+                                if note_duration > 1 {
+                                    result.push(note_value);
+                                    result.extend_from_slice(
+                                        (note_duration - 1).to_string().as_bytes(),
+                                    );
+
+                                    note_duration = 1;
+                                }
+
+                                alterator = note;
+                                note_type = NoteType::Altered;
+                            } else if note_value != note {
+                                result.push(note_value);
+                                result.extend_from_slice(note_duration.to_string().as_bytes());
+
+                                note_value = note;
+                                note_duration = 1;
+                            } else {
+                                note_duration += 1;
+                            }
+                        }
+                    }
+                    NoteType::Altered => {
+                        if note_value != note {
+                            result.push(note_value);
+                            result.push(alterator);
+                            result.extend_from_slice(note_duration.to_string().as_bytes());
+
+                            note_duration = 1;
+                            alterator = 0;
+                            note_value = note;
+                        }
+
+                        note_type = NoteType::Normal;
+                    }
                 }
             }
         }
 
+        result.push(note_value);
+        if alterator > 0 {
+            result.push(alterator);
+        }
+        result.extend_from_slice(note_duration.to_string().as_bytes());
+
+        match note_type {
+            NoteType::Normal => {
+                if alterator > 0 {
+                    result.push(note_value);
+                    result.push(49);
+                }
+            }
+            _ => (),
+        }
+
         songs_durations.insert(song_name.to_string(), song_duration);
-        // TODO: vector with tuples with song dir/file and actual song Vec<u8>
 
-        // TODO: do this cleaner
-        let new_path = Path::new(song_file)
-            .parent()
-            .unwrap()
-            .join(Path::new(format!("{}.txt", song_name).as_str()));
+        // Save index.txt :)
 
-        songs_paths.push((new_path, result));
-    }
+        let song_path = target_folder
+            .join(song_file)
+            .with_file_name(song_name)
+            .with_extension(".txt");
 
-    for (song_path, song) in songs_paths {
-        create_dir_all(Path::new(target_folder).join(&song_path).parent().unwrap()).unwrap();
-
-        File::create(Path::new(target_folder).join(&song_path))
-            .unwrap()
-            .write_all(&song)
-            .unwrap();
+        create_dir_all(song_path.parent().unwrap()).unwrap();
+        File::create(song_path).unwrap().write_all(&result).unwrap();
     }
 
     songs_durations
@@ -261,3 +315,68 @@ pub fn umkansanize(source_folder: &str, target_folder: &str) -> HashMap<String, 
 // A ! => A + 1
 // A ! => A + 1
 // ~ ! => A + 1salvata
+// TODO: set size of songs_paths to musical_scores_index.len()
+// match note_type {
+//     NoteType::None => {
+//         note_value = note;
+//         note_duration = 1;
+//         note_type = NoteType::Normal;
+//     }
+//     NoteType::Normal => {
+//         if note == 98 || note == 35 {
+//             if alterator > 0 {
+//                 if alterator == note {
+//                     note_duration += 1;
+//                 } else {
+//                     result.push(note_value);
+//                     result.extend_from_slice(note_duration.to_string().as_bytes());
+//                     note_duration = 1;
+//                 }
+//             } else {
+//                 if note_duration > 1 {
+//                     result.push(note_value);
+//                     result.extend_from_slice(
+//                         (note_duration - 1).to_string().as_bytes(),
+//                     );
+//                     note_duration = 1
+//                 }
+//
+//                 alterator = note;
+//             }
+//
+//             note_type = NoteType::Altered;
+//         } else if note == note_value {
+//             note_duration += 1;
+//             alterator = 0;
+//         } else {
+//             result.push(note_value);
+//             result.extend_from_slice(note_duration.to_string().as_bytes());
+//
+//             note_value = note;
+//             note_duration = 1;
+//         }
+//     }
+//     NoteType::Altered => {
+//         if note != note_value {
+//             result.push(note_value);
+//             result.push(alterator); // TODO: alteration
+//             result.extend_from_slice(note_duration.to_string().as_bytes());
+//
+//             note_duration = 1;
+//         }
+//
+//         note_type = NoteType::Normal;
+//     }
+// }
+// let mut note_value: u8 = 0;
+// let mut note_duration: usize = 0;
+// let mut note_type = NoteType::None;
+// let mut alterator: u8 = 0;
+//         if note != 98 && note != 35 {
+//             song_duration += 1;
+//         }
+// enum NoteType {
+//     None,
+//     Normal,
+//     Altered,
+// }
