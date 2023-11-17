@@ -1,13 +1,39 @@
 #[cfg(test)]
 mod tests {
+    extern crate test;
+
+    use test::Bencher;
+
+    fn run_on_folder(test_name: &str, bencher: &mut Bencher) {
+        let source_folder = format!("workdir/{}", test_name);
+        let target_folder = Path::new("workdir").join(format!("{}.out", test_name));
+
+        if target_folder.exists() {
+            remove_dir_all(&target_folder).expect("Couldn't remove targetr_folder");
+        }
+
+        bencher.iter(|| {
+            umkansanize(&source_folder, target_folder.to_str().unwrap());
+        })
+    }
+    #[bench]
+    fn bench_test_folders(bencher: &mut Bencher) {
+        // run_on_folder("test01", bencher);
+        // run_on_folder("test02", bencher);
+        // run_on_folder("test03", bencher);
+        // run_on_folder("test04", bencher);
+        // run_on_folder("test05", bencher);
+        // run_on_folder("test06", bencher);
+        // run_on_folder("test07", bencher);
+        // run_on_folder("test08", bencher);
+        // run_on_folder("test09", bencher);
+        run_on_folder("test10", bencher);
+    }
+
     use crate::umkansanize;
     use std::fs::{remove_dir_all, File};
     use std::io::{BufReader, Read};
     use std::path::Path;
-
-    fn read_music_score(path: &String) -> String {
-        "".to_string()
-    }
 
     fn check_filesystem(test_name: &str) {
         let source_folder = format!("workdir/{}", test_name);

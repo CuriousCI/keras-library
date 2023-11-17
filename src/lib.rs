@@ -1,12 +1,15 @@
+#![feature(test)]
 pub mod tests;
 
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{BufReader, Read, Write};
 use std::path::Path;
+use std::sync::mpsc::channel;
+use std::thread;
 
 // TODO: use later in threads
-pub fn translate_song() {}
+// pub fn translate_song() {}
 
 // TODO: Change HashMap into HashMap<&str, usize>
 pub fn umkansanize(source_folder: &str, target_folder: &str) -> HashMap<String, usize> {
@@ -27,151 +30,180 @@ pub fn umkansanize(source_folder: &str, target_folder: &str) -> HashMap<String, 
 
     let mut songs_durations: HashMap<String, usize> = HashMap::new();
 
+    let (songs_transmitter, songs_receiver) = channel();
+    let threads_number = musical_scores_index.len();
+
     for (song_name, song_file) in musical_scores_index {
         // TODO: make a thread for each file, pay attention to shared hashmap
-        let mut musical_score = Vec::new();
-        BufReader::new(File::open(source_folder.join(song_file)).unwrap())
-            .read_to_end(&mut musical_score)
-            .unwrap();
+        let song_name = song_name.to_owned();
+        let song_file = song_file.to_owned();
+        let songs_transmitter = songs_transmitter.clone();
+        let source_folder = source_folder.to_owned();
+        let target_folder = target_folder.to_owned();
 
-        let tarahumara_umkansanian_dictionary = vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 0, 98, 0, 0, 65, 66, 67, 68, 69, 70, 71,
-        ];
+        thread::spawn(move || {
+            let tarahumara_umkansanian_dictionary = vec![
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 0, 98, 0, 0, 65, 66, 67, 68,
+                69, 70, 71,
+            ];
 
-        musical_score = musical_score
-            .iter()
-            .map(|&byte| tarahumara_umkansanian_dictionary[byte as usize])
-            .collect();
+            let mut musical_score = Vec::new();
+            BufReader::new(File::open(source_folder.join(&song_file)).unwrap())
+                .read_to_end(&mut musical_score)
+                .unwrap();
 
-        // TODO: prealloc musical score size, in reality you can't know!
-        let mut result = vec![];
-        let mut song_duration = 0;
+            musical_score = musical_score
+                .iter()
+                .map(|&byte| tarahumara_umkansanian_dictionary[byte as usize])
+                .collect();
 
-        enum NoteType {
-            None,
-            Normal,
-            Altered,
-        }
+            // TODO: prealloc musical score size, in reality you can't know!
+            let mut result = vec![];
+            let mut song_duration = 0;
 
-        let mut note_type = NoteType::None;
-        let mut note_value: u8 = 0;
-        let mut note_duration: usize = 0;
-        let mut alterator: u8 = 0;
+            enum NoteType {
+                None,
+                Normal,
+                Altered,
+            }
 
-        for staff in musical_score.split(|&byte| byte == 10 as u8) {
-            for &note in staff.iter().rev() {
-                if note != 35 && note != 98 {
-                    song_duration += 1;
-                }
+            let mut note_type = NoteType::None;
+            let mut note_value: u8 = 0;
+            let mut note_duration: usize = 0;
+            let mut alterator: u8 = 0;
 
-                match note_type {
-                    NoteType::None => {
-                        note_value = note;
-                        note_duration = 1;
-                        note_type = NoteType::Normal;
+            for staff in musical_score.split(|&byte| byte == 10 as u8) {
+                for &note in staff.iter().rev() {
+                    if note != 35 && note != 98 {
+                        song_duration += 1;
                     }
-                    NoteType::Normal => {
-                        if alterator > 0 {
-                            if note == 35 || note == 98 {
-                                if alterator != note {
+
+                    match note_type {
+                        NoteType::None => {
+                            note_value = note;
+                            note_duration = 1;
+                            note_type = NoteType::Normal;
+                        }
+                        NoteType::Normal => {
+                            if alterator > 0 {
+                                if note == 35 || note == 98 {
+                                    if alterator != note {
+                                        result.push(note_value);
+                                        result.push(alterator);
+                                        result.extend_from_slice(
+                                            note_duration.to_string().as_bytes(),
+                                        );
+
+                                        alterator = note;
+                                        note_duration = 1;
+                                    } else {
+                                        note_duration += 1;
+                                    }
+
+                                    note_type = NoteType::Altered;
+                                } else if note_value != note {
+                                    result.push(note_value);
+                                    result.push(alterator);
+                                    result.extend_from_slice(note_duration.to_string().as_bytes());
+                                    result.push(note_value);
+                                    result.push(49); // 1 in ASCII
+
+                                    note_value = note;
+                                    note_duration = 1;
+                                    alterator = 0;
+                                } else {
                                     result.push(note_value);
                                     result.push(alterator);
                                     result.extend_from_slice(note_duration.to_string().as_bytes());
 
+                                    note_duration = 2;
+                                    alterator = 0;
+                                }
+                            } else {
+                                if note == 35 || note == 98 {
+                                    if note_duration > 1 {
+                                        result.push(note_value);
+                                        result.extend_from_slice(
+                                            (note_duration - 1).to_string().as_bytes(),
+                                        );
+
+                                        note_duration = 1;
+                                    }
+
                                     alterator = note;
+                                    note_type = NoteType::Altered;
+                                } else if note_value != note {
+                                    result.push(note_value);
+                                    result.extend_from_slice(note_duration.to_string().as_bytes());
+
+                                    note_value = note;
                                     note_duration = 1;
                                 } else {
                                     note_duration += 1;
                                 }
-
-                                note_type = NoteType::Altered;
-                            } else if note_value != note {
-                                result.push(note_value);
-                                result.push(alterator);
-                                result.extend_from_slice(note_duration.to_string().as_bytes());
-                                result.push(note_value);
-                                result.push(49); // 1 in ASCII
-
-                                note_value = note;
-                                note_duration = 1;
-                                alterator = 0;
-                            } else {
+                            }
+                        }
+                        NoteType::Altered => {
+                            if note_value != note {
                                 result.push(note_value);
                                 result.push(alterator);
                                 result.extend_from_slice(note_duration.to_string().as_bytes());
 
-                                note_duration = 2;
-                                alterator = 0;
-                            }
-                        } else {
-                            if note == 35 || note == 98 {
-                                if note_duration > 1 {
-                                    result.push(note_value);
-                                    result.extend_from_slice(
-                                        (note_duration - 1).to_string().as_bytes(),
-                                    );
-
-                                    note_duration = 1;
-                                }
-
-                                alterator = note;
-                                note_type = NoteType::Altered;
-                            } else if note_value != note {
-                                result.push(note_value);
-                                result.extend_from_slice(note_duration.to_string().as_bytes());
-
-                                note_value = note;
                                 note_duration = 1;
-                            } else {
-                                note_duration += 1;
+                                alterator = 0;
+                                note_value = note;
                             }
-                        }
-                    }
-                    NoteType::Altered => {
-                        if note_value != note {
-                            result.push(note_value);
-                            result.push(alterator);
-                            result.extend_from_slice(note_duration.to_string().as_bytes());
 
-                            note_duration = 1;
-                            alterator = 0;
-                            note_value = note;
+                            note_type = NoteType::Normal;
                         }
-
-                        note_type = NoteType::Normal;
                     }
                 }
             }
-        }
 
-        result.push(note_value);
-        if alterator > 0 {
-            result.push(alterator);
-        }
-        result.extend_from_slice(note_duration.to_string().as_bytes());
-
-        match note_type {
-            NoteType::Normal => {
-                if alterator > 0 {
-                    result.push(note_value);
-                    result.push(49);
-                }
+            result.push(note_value);
+            if alterator > 0 {
+                result.push(alterator);
             }
-            _ => (),
-        }
+            result.extend_from_slice(note_duration.to_string().as_bytes());
 
-        songs_durations.insert(song_name.to_string(), song_duration);
+            match note_type {
+                NoteType::Normal => {
+                    if alterator > 0 {
+                        result.push(note_value);
+                        result.push(49);
+                    }
+                }
+                _ => (),
+            }
 
-        // Save index.txt :)
+            songs_transmitter.send((song_name.to_string(), song_duration));
+            // songs_durations.insert(song_name.to_string(), song_duration);
 
-        let song_path = target_folder
-            .join(song_file)
-            .with_file_name(song_name)
-            .with_extension(".txt");
+            // Save index.txt :)
 
-        create_dir_all(song_path.parent().unwrap()).unwrap();
-        File::create(song_path).unwrap().write_all(&result).unwrap();
+            let song_path = target_folder
+                .join(song_file)
+                .with_file_name(song_name)
+                .with_extension(".txt");
+
+            create_dir_all(song_path.parent().unwrap()).unwrap();
+            File::create(song_path).unwrap().write_all(&result).unwrap();
+        });
+    }
+
+    // for (song_name, song_duration) in
+    for _ in 0..threads_number {
+        let (song_name, song_duration) = songs_receiver.recv().unwrap();
+        songs_durations.insert(song_name, song_duration);
+    }
+
+    // TODO: make this cleaner
+    let mut index = File::create(target_folder.join("index.txt")).unwrap();
+    let mut songs: Vec<(&String, &usize)> = songs_durations.iter().collect();
+    songs.sort_by_key(|(song_name, &song_duration)| (song_duration as i64 * -1, *song_name));
+    for (song_name, songs_duration) in songs {
+        writeln!(index, "\"{}\" {}", song_name, songs_duration).unwrap();
     }
 
     songs_durations
@@ -286,97 +318,4 @@ pub fn umkansanize(source_folder: &str, target_folder: &str) -> HashMap<String, 
 // }
 // result.push(previous_note_count);
 // duration += previous_note_count as usize;
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-// AAbAbAbAAAbAbAAAAA
-// A ~
-// A ~
-// b ! => A salvata, Ab nuova
-// A ~
-// b ! => Ab + 1
-// A ~
-// b ! => Ab + 1
-// A ~
-// A ! => Ab salvata, A nuova
-// A ~
-// b ! => A + 1 salvata, Ab nuova
-// A ~
-// b ! => Ab + 1
-// A ~
-// A ! => Ab salvata, A nuova
-// A ! => A + 1
-// A ! => A + 1
-// ~ ! => A + 1salvata
 // TODO: set size of songs_paths to musical_scores_index.len()
-// match note_type {
-//     NoteType::None => {
-//         note_value = note;
-//         note_duration = 1;
-//         note_type = NoteType::Normal;
-//     }
-//     NoteType::Normal => {
-//         if note == 98 || note == 35 {
-//             if alterator > 0 {
-//                 if alterator == note {
-//                     note_duration += 1;
-//                 } else {
-//                     result.push(note_value);
-//                     result.extend_from_slice(note_duration.to_string().as_bytes());
-//                     note_duration = 1;
-//                 }
-//             } else {
-//                 if note_duration > 1 {
-//                     result.push(note_value);
-//                     result.extend_from_slice(
-//                         (note_duration - 1).to_string().as_bytes(),
-//                     );
-//                     note_duration = 1
-//                 }
-//
-//                 alterator = note;
-//             }
-//
-//             note_type = NoteType::Altered;
-//         } else if note == note_value {
-//             note_duration += 1;
-//             alterator = 0;
-//         } else {
-//             result.push(note_value);
-//             result.extend_from_slice(note_duration.to_string().as_bytes());
-//
-//             note_value = note;
-//             note_duration = 1;
-//         }
-//     }
-//     NoteType::Altered => {
-//         if note != note_value {
-//             result.push(note_value);
-//             result.push(alterator); // TODO: alteration
-//             result.extend_from_slice(note_duration.to_string().as_bytes());
-//
-//             note_duration = 1;
-//         }
-//
-//         note_type = NoteType::Normal;
-//     }
-// }
-// let mut note_value: u8 = 0;
-// let mut note_duration: usize = 0;
-// let mut note_type = NoteType::None;
-// let mut alterator: u8 = 0;
-//         if note != 98 && note != 35 {
-//             song_duration += 1;
-//         }
-// enum NoteType {
-//     None,
-//     Normal,
-//     Altered,
-// }
