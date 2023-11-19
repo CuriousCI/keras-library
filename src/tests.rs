@@ -5,103 +5,79 @@ mod tests {
     use test::Bencher;
 
     fn run_on_folder(test_name: &str, bencher: &mut Bencher) {
-        let source_folder = format!("workdir/{}", test_name);
-        let target_folder = Path::new("workdir").join(format!("{}.out", test_name));
+        let source_folder = Path::new("workdir").join(test_name);
+        let target_folder = Path::new("workdir").join(format!("{test_name}.out"));
 
         if target_folder.exists() {
             remove_dir_all(&target_folder).expect("Couldn't remove targetr_folder");
         }
 
         bencher.iter(|| {
-            umkansanize(&source_folder, target_folder.to_str().unwrap());
+            umkansanize(&source_folder, &target_folder);
         })
     }
     #[bench]
     fn bench_test_folders(bencher: &mut Bencher) {
-        // run_on_folder("test01", bencher);
-        // run_on_folder("test02", bencher);
-        // run_on_folder("test03", bencher);
-        // run_on_folder("test04", bencher);
-        // run_on_folder("test05", bencher);
-        // run_on_folder("test06", bencher);
-        // run_on_folder("test07", bencher);
-        // run_on_folder("test08", bencher);
-        // run_on_folder("test09", bencher);
+        run_on_folder("test01", bencher);
+        run_on_folder("test02", bencher);
+        run_on_folder("test03", bencher);
+        run_on_folder("test04", bencher);
+        run_on_folder("test05", bencher);
+        run_on_folder("test06", bencher);
+        run_on_folder("test07", bencher);
+        run_on_folder("test08", bencher);
+        run_on_folder("test09", bencher);
         run_on_folder("test10", bencher);
     }
 
     use crate::umkansanize;
-    use std::fs::{remove_dir_all, File};
-    use std::io::{BufReader, Read};
-    use std::path::Path;
+    use std::fs::{read_to_string, remove_dir_all};
+    use std::path::{Path, PathBuf};
 
     fn check_filesystem(test_name: &str) {
-        let source_folder = format!("workdir/{}", test_name);
-        let target_folder = format!("workdir/{}.out", test_name);
-        let expected_results_folder = format!("workdir/{}.expected", test_name);
+        let workdir = Path::new("workdir");
+        let source_folder = workdir.join(test_name);
+        let target_folder = workdir.join(&format!("{test_name}.out"));
+        let expected_folder = workdir.join(&format!("{test_name}.expected"));
 
         if Path::new(&target_folder).exists() {
-            remove_dir_all(&target_folder).expect(&format!("Couldn't remove {}", target_folder))
+            remove_dir_all(&target_folder).expect("Couldn't remove target_folder")
         }
 
         umkansanize(&source_folder, &target_folder);
 
-        let file = File::open(format!("{}/index.txt", source_folder))
-            .expect("Source index.txt file not found!");
+        let index = read_to_string(source_folder.join("index.txt"))
+            .unwrap()
+            .replace('"', "\r");
 
-        let mut index = String::new();
-        BufReader::new(file)
-            .read_to_string(&mut index)
-            .expect("Failed reading index!");
-        index = index.replace('"', "\r");
-
-        let mut expected_songs_files: Vec<String> = index
+        let mut expected_songs_files: Vec<PathBuf> = index
             .trim()
             .split("\n")
             .map(|line| line.trim().split_once("\r \r").unwrap())
             .map(|(song_name, song_file)| {
-                format!(
-                    "{}/{}.txt",
-                    Path::new(song_file)
-                        .parent()
-                        .expect("Path doesn't have a file")
-                        .to_str()
-                        .expect("Path doesn't have valid unicode"),
-                    song_name
-                )
+                Path::new(song_file)
+                    .parent()
+                    .unwrap()
+                    .join(format!("{}.txt", song_name))
             })
             .collect();
-        expected_songs_files.push("index.txt".to_string());
+        expected_songs_files.push(Path::new("index.txt").to_owned());
 
         for song_file in expected_songs_files {
-            let target_song = format!("{}/{}", target_folder, song_file);
-            let target_song_file = File::open(&target_song)
-                .expect(&format!("The file \"{}\" non esiste!", target_song));
-
-            let mut target_song_score = String::new();
-            BufReader::new(target_song_file)
-                .read_to_string(&mut target_song_score)
-                .expect(&format!("Failed reading \"{}\"!", target_song));
-            target_song_score = target_song_score
+            let target_song: String = read_to_string(target_folder.join(&song_file))
+                .expect(&format!("File not found {}", song_file.to_str().unwrap()))
                 .chars()
                 .filter(|c| !c.is_whitespace())
                 .collect();
 
-            let expected_song = format!("{}/{}", expected_results_folder, song_file);
-            let expected_song_file = File::open(&expected_song)
-                .expect(&format!("The file \"{}\" non esiste!", expected_song));
-
-            let mut expected_song_score = String::new();
-            BufReader::new(expected_song_file)
-                .read_to_string(&mut expected_song_score)
-                .expect(&format!("Failed reading \"{}\"!", expected_song));
-            expected_song_score = expected_song_score
+            let expected_song: String = read_to_string(expected_folder.join(&song_file))
+                .expect(&format!("File not found {}", song_file.to_str().unwrap()))
                 .chars()
                 .filter(|c| !c.is_whitespace())
                 .collect();
 
-            if target_song_score != expected_song_score {
-                panic!("Songs \"{}\" are different!", target_song)
+            if target_song != expected_song {
+                panic!("Songs \"{}\" are different!", song_file.to_str().unwrap());
             }
         }
     }

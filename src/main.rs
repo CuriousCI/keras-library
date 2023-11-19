@@ -1,4 +1,5 @@
 use keras::umkansanize;
+use std::path::Path;
 
 pub fn main() {
     let tests = vec![
@@ -6,12 +7,12 @@ pub fn main() {
         "test10",
     ];
 
-    let base_path = "/home/cicio/projects/keras-library/workdir/";
+    let base_path = Path::new("D:/university/python/hw4-rust/workdir");
 
     for test in tests {
         umkansanize(
-            &format!("{}{}", base_path, test),
-            &format!("{}{}.out", base_path, test),
+            &base_path.join(test),
+            &base_path.join(&format!("{}.out", test)),
         );
     }
 }

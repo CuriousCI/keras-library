@@ -1,321 +1,184 @@
 #![feature(test)]
 pub mod tests;
 
-use std::collections::HashMap;
-use std::fs::{create_dir_all, File};
-use std::io::{BufReader, Read, Write};
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
+use std::fs::{create_dir_all, read, read_to_string, write, File};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
-use std::thread;
+use std::thread::spawn;
 
-// TODO: use later in threads
-// pub fn translate_song() {}
+enum Note {
+    None,
+    Normal(char, usize),
+    Accidental(char, usize, char),
+    Unknown(char, usize, char),
+}
 
-// TODO: Change HashMap into HashMap<&str, usize>
-pub fn umkansanize(source_folder: &str, target_folder: &str) -> HashMap<String, usize> {
-    let source_folder = Path::new(source_folder);
-    let target_folder = Path::new(target_folder);
+use Note::*;
 
-    let mut source_index = String::new();
-    BufReader::new(File::open(source_folder.join("index.txt")).unwrap())
-        .read_to_string(&mut source_index)
-        .unwrap();
+// pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
+pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
+    let source_index = read_to_string(source_folder.join("index.txt"))
+        .unwrap()
+        .replace("\" \"", "\r")
+        .replace('"', "");
 
-    source_index = source_index.replace('"', "\r");
-    let musical_scores_index: Vec<(&str, &str)> = source_index
+    let songs_index: Vec<(&str, &str)> = source_index
         .split('\n')
-        .filter_map(|line| line.trim().split_once("\r \r"))
+        .filter_map(|line| line.split_once('\r'))
         .collect();
-    // Instead of collecting here, make threads and  send them rx and tx to hashmap later
 
-    let mut songs_durations: HashMap<String, usize> = HashMap::new();
+    let tarahumara_umkansanian_dictionary: &Vec<u8> = &vec![
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 0, 98, 0, 0, 65, 66, 67, 68, 69, 70, 71,
+    ];
 
-    let (songs_transmitter, songs_receiver) = channel();
-    let threads_number = musical_scores_index.len();
+    let paths: HashSet<PathBuf> = songs_index
+        .iter()
+        .map(|(_, file)| target_folder.join(file).parent().unwrap().to_owned())
+        .collect();
 
-    for (song_name, song_file) in musical_scores_index {
-        // TODO: make a thread for each file, pay attention to shared hashmap
+    for path in paths {
+        create_dir_all(path).unwrap();
+    }
+
+    let threads_number = songs_index.len();
+    let (tx, rx) = channel();
+
+    for (song_name, song_file) in songs_index {
+        let musical_score: Vec<char> = read(source_folder.join(&song_file))
+            .unwrap()
+            .iter()
+            .map(|&byte| tarahumara_umkansanian_dictionary[byte as usize] as char)
+            .collect();
+
         let song_name = song_name.to_owned();
         let song_file = song_file.to_owned();
-        let songs_transmitter = songs_transmitter.clone();
-        let source_folder = source_folder.to_owned();
         let target_folder = target_folder.to_owned();
+        let tx = tx.clone();
 
-        thread::spawn(move || {
-            let tarahumara_umkansanian_dictionary = vec![
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 35, 0, 98, 0, 0, 65, 66, 67, 68,
-                69, 70, 71,
-            ];
-
-            let mut musical_score = Vec::new();
-            BufReader::new(File::open(source_folder.join(&song_file)).unwrap())
-                .read_to_end(&mut musical_score)
-                .unwrap();
-
-            musical_score = musical_score
-                .iter()
-                .map(|&byte| tarahumara_umkansanian_dictionary[byte as usize])
-                .collect();
-
-            // TODO: prealloc musical score size, in reality you can't know!
-            let mut result = vec![];
+        spawn(move || {
+            let mut result = String::new();
             let mut song_duration = 0;
+            let mut note = None;
 
-            enum NoteType {
-                None,
-                Normal,
-                Altered,
-            }
-
-            let mut note_type = NoteType::None;
-            let mut note_value: u8 = 0;
-            let mut note_duration: usize = 0;
-            let mut alterator: u8 = 0;
-
-            for staff in musical_score.split(|&byte| byte == 10 as u8) {
-                for &note in staff.iter().rev() {
-                    if note != 35 && note != 98 {
+            for staff in musical_score.split(|&byte| byte == '\n') {
+                for &symbol in staff.iter().rev() {
+                    if symbol != '#' && symbol != 'b' {
                         song_duration += 1;
                     }
 
-                    match note_type {
-                        NoteType::None => {
-                            note_value = note;
-                            note_duration = 1;
-                            note_type = NoteType::Normal;
-                        }
-                        NoteType::Normal => {
-                            if alterator > 0 {
-                                if note == 35 || note == 98 {
-                                    if alterator != note {
-                                        result.push(note_value);
-                                        result.push(alterator);
-                                        result.extend_from_slice(
-                                            note_duration.to_string().as_bytes(),
-                                        );
-
-                                        alterator = note;
-                                        note_duration = 1;
-                                    } else {
-                                        note_duration += 1;
-                                    }
-
-                                    note_type = NoteType::Altered;
-                                } else if note_value != note {
-                                    result.push(note_value);
-                                    result.push(alterator);
-                                    result.extend_from_slice(note_duration.to_string().as_bytes());
-                                    result.push(note_value);
-                                    result.push(49); // 1 in ASCII
-
-                                    note_value = note;
-                                    note_duration = 1;
-                                    alterator = 0;
-                                } else {
-                                    result.push(note_value);
-                                    result.push(alterator);
-                                    result.extend_from_slice(note_duration.to_string().as_bytes());
-
-                                    note_duration = 2;
-                                    alterator = 0;
+                    note = match note {
+                        None => Normal(symbol, 1),
+                        Normal(note, duration) => match symbol {
+                            '#' | 'b' => {
+                                if duration > 1 {
+                                    result.push_str(&format!("{note}{}", duration - 1));
                                 }
+
+                                Accidental(note, 1, symbol)
+                            }
+                            _ => {
+                                if symbol == note {
+                                    Normal(note, duration + 1)
+                                } else {
+                                    result.push_str(&format!("{note}{duration}"));
+                                    Normal(symbol, 1)
+                                }
+                            }
+                        },
+                        Accidental(note, duration, accidental) => {
+                            if symbol == note {
+                                Unknown(note, duration, accidental)
                             } else {
-                                if note == 35 || note == 98 {
-                                    if note_duration > 1 {
-                                        result.push(note_value);
-                                        result.extend_from_slice(
-                                            (note_duration - 1).to_string().as_bytes(),
-                                        );
-
-                                        note_duration = 1;
-                                    }
-
-                                    alterator = note;
-                                    note_type = NoteType::Altered;
-                                } else if note_value != note {
-                                    result.push(note_value);
-                                    result.extend_from_slice(note_duration.to_string().as_bytes());
-
-                                    note_value = note;
-                                    note_duration = 1;
+                                result.push_str(&format!("{note}{accidental}{duration}"));
+                                Normal(symbol, 1)
+                            }
+                        }
+                        Unknown(note, duration, accidental) => match symbol {
+                            '#' | 'b' => {
+                                if symbol != accidental {
+                                    result.push_str(&format!("{note}{accidental}{duration}"));
+                                    Accidental(note, 1, symbol)
                                 } else {
-                                    note_duration += 1;
+                                    Accidental(note, duration + 1, accidental)
                                 }
                             }
-                        }
-                        NoteType::Altered => {
-                            if note_value != note {
-                                result.push(note_value);
-                                result.push(alterator);
-                                result.extend_from_slice(note_duration.to_string().as_bytes());
-
-                                note_duration = 1;
-                                alterator = 0;
-                                note_value = note;
+                            _ => {
+                                if symbol == note {
+                                    result.push_str(&format!("{note}{accidental}{duration}"));
+                                    Normal(note, 2)
+                                } else {
+                                    result
+                                        .push_str(&format!("{note}{accidental}{duration}{note}1"));
+                                    Normal(symbol, 1)
+                                }
                             }
-
-                            note_type = NoteType::Normal;
-                        }
+                        },
                     }
                 }
             }
 
-            result.push(note_value);
-            if alterator > 0 {
-                result.push(alterator);
-            }
-            result.extend_from_slice(note_duration.to_string().as_bytes());
-
-            match note_type {
-                NoteType::Normal => {
-                    if alterator > 0 {
-                        result.push(note_value);
-                        result.push(49);
-                    }
+            result.push_str(&match note {
+                Normal(note, duration) => format!("{note}{duration}"),
+                Accidental(note, duration, accidental) => format!("{note}{accidental}{duration}"),
+                Unknown(note, duration, accidental) => {
+                    format!("{note}{accidental}{duration}{note}1")
                 }
-                _ => (),
-            }
-
-            songs_transmitter.send((song_name.to_string(), song_duration));
-            // songs_durations.insert(song_name.to_string(), song_duration);
-
-            // Save index.txt :)
+                _ => unreachable!(),
+            });
 
             let song_path = target_folder
                 .join(song_file)
-                .with_file_name(song_name)
+                .with_file_name(&song_name)
                 .with_extension(".txt");
 
-            create_dir_all(song_path.parent().unwrap()).unwrap();
-            File::create(song_path).unwrap().write_all(&result).unwrap();
+            write(song_path, result).unwrap();
+            tx.send((song_name.to_string(), song_duration)).unwrap();
         });
     }
 
-    // for (song_name, song_duration) in
-    for _ in 0..threads_number {
-        let (song_name, song_duration) = songs_receiver.recv().unwrap();
-        songs_durations.insert(song_name, song_duration);
-    }
+    // let mut songs_durations: HashMap<String, usize> = HashMap::new();
+
+    let mut songs: Vec<(String, i32)> = rx.iter().collect();
+    // for _ in 0..threads_number {
+    //     let (name, duration) = rx.recv().unwrap();
+    //     songs.push((name, duration));
+    // }
+
+    songs.sort_by_key(|(song_name, song_duration)| (-song_duration, song_name.to_owned()));
 
     // TODO: make this cleaner
+    // let mut songs: Vec<(&String, &usize)> = songs_durations.iter().collect();
     let mut index = File::create(target_folder.join("index.txt")).unwrap();
-    let mut songs: Vec<(&String, &usize)> = songs_durations.iter().collect();
-    songs.sort_by_key(|(song_name, &song_duration)| (song_duration as i64 * -1, *song_name));
     for (song_name, songs_duration) in songs {
         writeln!(index, "\"{}\" {}", song_name, songs_duration).unwrap();
     }
 
-    songs_durations
+    // songs.into_iter().collect()
+    // songs_durations
 }
 
-// .write_all(song.leak())
-// .write_all(song.as_slice())
-// Possible file reading optimization
-// let start = 10;
-// let count = 10;
-//
-// let mut f = File::open("/etc/passwd")?;
-// f.seek(SeekFrom::Start(start))?;
-// let mut buf = vec![0; count];
-// f.read_exact(&mut buf)?;
-//
-//
-// Data Structure for paths to build the least amount of paths required
-//
-//' '- 20 -> 80 - P
-// + - 43 -> 35 - #
-// - - 45 -> 98 - b
-// 0 - 48 -> 65 - A
-// 1 - 49 -> 66 - B
-// 2 - 50 -> 67 - C
-// 3 - 51 -> 68 - D
-// 4 - 52 -> 69 - E
-// 5 - 53 -> 70 - F
-// 6 - 54 -> 71 - G
-// mask: 111111
-// 6 bits are enough
-// 11 indices, so 11 * 6 bits are needed
-//>>> numbers = [43, 45, 48, 49, 50, 51, 52, 53, 54]
-// >>> print(list(map(lambda x: x - 43, numbers)))
-// [0, 2, 5, 6, 7, 8, 9, 10, 11]
-// >>> translated = [35, 98, 65, 66, 67, 68, 69, 70, 71]
-// >>> print(list(map(lambda x: x - 35, translated)))
-// [0, 63, 30, 31, 32, 33, 34, 35, 36]
+// let mut t = vec![];
+// t.push((name, duration));
+// t.sort_by_key(|(song_name, song_duration)| (*song_duration as i64 * -1, *song_name));
+// for (name, file, duration, result) in results {
+// let song_path = target_folder
+//     .join(file)
+//     .with_file_name(&name)
+//     .with_extension(".txt");
 
-// println!("{:?}", musical_score);
-
-// musical_score.iter().rev()
-
-// Go from bottom to top, and put new char to the left of the previous one
-//
-// let lines: Vec<&[u8]> = musical_score
-//     .split(|&byte| byte == 10 as u8)
-//     .rev()
-//     .collect();
-// Save in HashMap song_name and duration
-// songs_durations[song_name, duration];
-// result.push(previous_note);
-// result.push(previous_note_count);
-
-// if previous_note > di certo valore che indica diesis o bemolle
-// scomponi previous_note e aggiungi
-// result.push(previous_note)
-// result.push(bemolle / diesis in base
-//
-// + - 43 -> 35 - #
-// - - 45 -> 98 - b
-
-// Translate song into new language using vector map
-// Replace # and b
-// Tokenize directly with double token?
-// Save bytes into vec, and save data to file
-// if previous_note > 162 {
-//     // Use if inside if to assign 'offset'
-//     result.push(previous_note - 98);
-//     result.push(98);
-// } else if previous_note > 99 {
-//     result.push(previous_note - 35);
-//     result.push(35);
-// } else if previous_note > 0 {
-//     result.push(previous_note);
+// write(song_path, result).unwrap();
+// songs_durations.insert(name.to_string(), duration);
 // }
-// result.push(previous_note_count);
-// let index_file = File::open(source_folder.join("index.txt"))
-// let index_file = File::open(format!("{}/index.txt", source_folder))
-// .expect("Source index.txt file not found!");
-// .expect("Failed reading index!");
-// BufReader::new(File::open(format!("{}/{}", source_folder, song_file)).unwrap())
-// TODO: NOPE
-// if note == 98 || note == 35 {
-//     current_note = current_base + note;
-// } else {
-//     current_base = note;
-// }
+// results.push((song_name, song_file, song_duration, result));
+// paths.insert(target_folder.join(song_file).parent().unwrap().to_owned());
+// let mut results = vec![];
 //
-// if current_note != previous_note {
-//     if previous_note > 99 {
-//         let offset = if previous_note > 162 { 98 } else { 35 };
-//         result.push(previous_note - offset);
-//         result.push(offset);
-//     } else if previous_note > 0 {
-//         result.push(previous_note);
-//     }
-//     result.push(48 + previous_note_count); // '0' + count
 //
-//     // previous_note = current_note;
-//     previous_note = note;
-//     duration += previous_note_count as usize;
-//     previous_note_count = 1;
-// }
-// TODO: enum for diesis and bemolle?
-// if previous_note > 99 {
-//     let offset = if previous_note > 162 { 98 } else { 35 };
-//     result.push(previous_note - offset);
-//     result.push(offset);
-// } else if previous_note > 0 {
-//     result.push(previous_note);
-// }
-// result.push(previous_note_count);
-// duration += previous_note_count as usize;
-// TODO: set size of songs_paths to musical_scores_index.len()
+//
+//
+//
+//
+// https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=7f49e2da3b52d8887aa0e18425121e1f

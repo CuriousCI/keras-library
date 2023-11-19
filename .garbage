@@ -1,0 +1,269 @@
+// .write_all(song.leak())
+// .write_all(song.as_slice())
+// Possible file reading optimization
+// let start = 10;
+// let count = 10;
+//
+// let mut f = File::open("/etc/passwd")?;
+// f.seek(SeekFrom::Start(start))?;
+// let mut buf = vec![0; count];
+// f.read_exact(&mut buf)?;
+//
+//
+// Data Structure for paths to build the least amount of paths required
+//
+//' '- 20 -> 80 - P
+// + - 43 -> 35 - #
+// - - 45 -> 98 - b
+// 0 - 48 -> 65 - A
+// 1 - 49 -> 66 - B
+// 2 - 50 -> 67 - C
+// 3 - 51 -> 68 - D
+// 4 - 52 -> 69 - E
+// 5 - 53 -> 70 - F
+// 6 - 54 -> 71 - G
+// mask: 111111
+// 6 bits are enough
+// 11 indices, so 11 * 6 bits are needed
+//>>> numbers = [43, 45, 48, 49, 50, 51, 52, 53, 54]
+// >>> print(list(map(lambda x: x - 43, numbers)))
+// [0, 2, 5, 6, 7, 8, 9, 10, 11]
+// >>> translated = [35, 98, 65, 66, 67, 68, 69, 70, 71]
+// >>> print(list(map(lambda x: x - 35, translated)))
+// [0, 63, 30, 31, 32, 33, 34, 35, 36]
+
+// println!("{:?}", musical_score);
+
+// musical_score.iter().rev()
+
+// Go from bottom to top, and put new char to the left of the previous one
+//
+// let lines: Vec<&[u8]> = musical_score
+//     .split(|&byte| byte == 10 as u8)
+//     .rev()
+//     .collect();
+// Save in HashMap song_name and duration
+// songs_durations[song_name, duration];
+// result.push(previous_note);
+// result.push(previous_note_count);
+
+// if previous_note > di certo valore che indica diesis o bemolle
+// scomponi previous_note e aggiungi
+// result.push(previous_note)
+// result.push(bemolle / diesis in base
+//
+// + - 43 -> 35 - #
+// - - 45 -> 98 - b
+
+// Translate song into new language using vector map
+// Replace # and b
+// Tokenize directly with double token?
+// Save bytes into vec, and save data to file
+// if previous_note > 162 {
+//     // Use if inside if to assign 'offset'
+//     result.push(previous_note - 98);
+//     result.push(98);
+// } else if previous_note > 99 {
+//     result.push(previous_note - 35);
+//     result.push(35);
+// } else if previous_note > 0 {
+//     result.push(previous_note);
+// }
+// result.push(previous_note_count);
+// let index_file = File::open(source_folder.join("index.txt"))
+// let index_file = File::open(format!("{}/index.txt", source_folder))
+// .expect("Source index.txt file not found!");
+// .expect("Failed reading index!");
+// BufReader::new(File::open(format!("{}/{}", source_folder, song_file)).unwrap())
+// TODO: NOPE
+// if note == 98 || note == 35 {
+//     current_note = current_base + note;
+// } else {
+//     current_base = note;
+// }
+//
+// if current_note != previous_note {
+//     if previous_note > 99 {
+//         let offset = if previous_note > 162 { 98 } else { 35 };
+//         result.push(previous_note - offset);
+//         result.push(offset);
+//     } else if previous_note > 0 {
+//         result.push(previous_note);
+//     }
+//     result.push(48 + previous_note_count); // '0' + count
+//
+//     // previous_note = current_note;
+//     previous_note = note;
+//     duration += previous_note_count as usize;
+//     previous_note_count = 1;
+// }
+// TODO: enum for diesis and bemolle?
+// if previous_note > 99 {
+//     let offset = if previous_note > 162 { 98 } else { 35 };
+//     result.push(previous_note - offset);
+//     result.push(offset);
+// } else if previous_note > 0 {
+//     result.push(previous_note);
+// }
+// result.push(previous_note_count);
+// duration += previous_note_count as usize;
+// TODO: set size of songs_paths to musical_scores_index.len()
+// source_index = source_index.replace('"', "\r");
+// let musical_scores_index: Vec<(&str, &str)> = source_index
+//     .split('\n')
+//     .filter_map(|line| line.trim().split_once("\r \r"))
+//     .collect();
+// Instead of collecting here, make threads and  send them rx and tx to hashmap later
+// songs_durations.insert(song_name.to_string(), song_duration);
+// Save index.txt :)
+// fs::write("", contents)
+// File::create(song_path).unwrap().write_all(&result).unwrap();
+// let mut source_index = String::new();
+// BufReader::new(File::open(source_folder.join("index.txt")).unwrap())
+//     .read_to_string(&mut source_index)
+//     .unwrap();
+
+// let mut source_index = read_to_string(source_folder.join("index.txt")).unwrap();
+// source_index = source_index.replace("\" \"", "\r").replace('"', ""); // https://users.rust-lang.org/t/fast-removing-chars-from-string/24554/12
+// let songs_index: Vec<(&str, &str)> = source_index
+//     .split('\n')
+//     .filter_map(|line| line.split_once('\r'))
+//     .collect();
+
+// let mut source_index
+// source_index
+// source_index = source_index; // https://users.rust-lang.org/t/fast-removing-chars-from-string/24554/12
+// for staff in musical_score.split(|&byte| byte == 10 as u8) {
+// for staff in musical_score.split(|&byte| byte == 10 as u8) {
+// if symbol != 35 && symbol != 98 {
+//     song_duration += 1;
+// }
+// enum Note {
+//     None,
+//     Normal(u8, u8),
+//     Accidental(u8, u8, u8),
+//     Unknown(u8, u8, u8),
+// }
+// let mut result = String::new();
+// TODO: prealloc musical score size, in reality you can't know!
+// let mut result = vec![];
+// let musical_score: Vec<u8> = read(source_folder.join(&song_file))
+//     .unwrap()
+//     .iter()
+//     .map(|&byte| tarahumara_umkansanian_dictionary[byte as usize])
+//     .collect();
+// if symbol == 35 || symbol == 98 {
+// result.push_str(&format!("{}{}", note as char, duration - 1));
+// result.push(note); result.extend_from_slice((duration - 1).to_string().as_bytes());
+// result.push_str(&format!("{}{duration}", note as char));
+// result.push(note); result.extend_from_slice(duration.to_string().as_bytes());
+// result.push_str(&format!(
+//     "{}{}{duration}",
+//     note as char, accidental as char
+// ));
+// result.push(note); result.push(accidental); result.extend_from_slice(duration.to_string().as_bytes());
+// result.push_str(&format!(
+//     "{}{}{duration}",
+//     note as char, accidental as char
+// ));
+// result.push(note); result.push(accidental); result.extend_from_slice(duration.to_string().as_bytes());
+// result.push_str(&format!(
+//     "{}{}{duration}{}1",
+//     note as char, accidental as char, note as char
+// ));
+// result.push(note); result.push(accidental); result.extend_from_slice(duration.to_string().as_bytes()); result.push(note); result.push(49); // 1 in ASCII
+// result.push_str(&format!(
+//     "{}{}{duration}",
+//     note as char, accidental as char
+// ));
+// result.push(note); result.push(accidental); result.extend_from_slice(duration.to_string().as_bytes());
+// result.push_str(&format!("{}{duration}", note as char))
+// result.push(note); result.extend_from_slice(duration.to_string().as_bytes());
+// result.push_str(&format!("{}{}{duration}", note as char, accidental as char))
+// result.push(note); result.push(accidental); result.extend_from_slice(duration.to_string().as_bytes());
+// result.push_str(&format!(
+//     "{}{}{duration}{}1",
+//     note as char, accidental as char, note as char
+// ))
+// result.push(note); result.push(accidental); result.extend_from_slice(duration.to_string().as_bytes()); result.push(note); result.push(49); // 1 in ASCII
+// if symbol != note {
+//     result.push_str(&format!("{note}{accidental}{duration}"));
+//     Note::Normal(symbol, 1)
+// } else {
+//     Note::Unknown(note, duration, accidental)
+// }
+// if symbol == '#' || symbol == 'b' {
+//     if accidental != symbol {
+//         result.push_str(&format!("{note}{accidental}{duration}"));
+//         Note::Accidental(note, 1, symbol)
+//     } else {
+//         Note::Accidental(note, duration + 1, accidental)
+//     }
+// } else if symbol != note {
+//     result.push_str(&format!("{note}{accidental}{duration}{note}1"));
+//     Note::Normal(symbol, 1)
+// } else {
+//     result.push_str(&format!("{note}{accidental}{duration}"));
+//     Note::Normal(note, 2)
+// }
+
+
+
+
+// note = match note {
+//     None => Normal(symbol, 1),
+//     Normal(note, duration) => match symbol {
+//         '#' | 'b' => Accidental(note, 1, symbol),
+//         _ if symbol == note => Normal(note, duration + 1),
+//           _ => Normal(symbol, 1),
+//     },
+//     Accidental(note, duration, accidental) => match symbol {
+//         _ if symbol == note => Unknown(note, duration, accidental),
+//         _ => Normal(symbol, 1),
+//     },
+//     Unknown(note, duration, accidental) => match symbol {
+//         '#' | 'b' => match accidental {
+//             _ if symbol != accidental => Accidental(note, 1, symbol),
+//             _ => Accidental(note, duration + 1, accidental),
+//         },
+//         _ if symbol == note => Normal(note, 2),
+//         _ => Normal(symbol, 1),
+//     },
+// }
+
+// note = match note {
+//     None => Normal(symbol, 1),
+//     Normal(note, duration) => match symbol {
+//         '#' | 'b' => Accidental(note, 1, symbol),
+//         _ => {
+//             if symbol == note {
+//                 Normal(note, duration + 1)
+//             } else {
+//                 Normal(symbol, 1)
+//             }
+//         }
+//     },
+//     Accidental(note, duration, accidental) => {
+//         if symbol == note {
+//             Unknown(note, duration, accidental)
+//         } else {
+//             Normal(symbol, 1)
+//         }
+//     }
+//     Unknown(note, duration, accidental) => match symbol {
+//         '#' | 'b' => {
+//             if symbol != accidental {
+//                 Accidental(note, 1, symbol)
+//             } else {
+//                 Accidental(note, duration + 1, accidental)
+//             }
+//         }
+//         _ => {
+//             if symbol == note {
+//                 Normal(note, 2)
+//             } else {
+//                 Normal(symbol, 1)
+//             }
+//         }
+//     },
+// }
