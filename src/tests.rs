@@ -2,31 +2,125 @@
 mod tests {
     extern crate test;
 
+    use std::fmt::Write;
     use test::Bencher;
 
     fn run_on_folder(test_name: &str, bencher: &mut Bencher) {
-        let source_folder = Path::new("workdir").join(test_name);
-        let target_folder = Path::new("workdir").join(format!("{test_name}.out"));
+        let workdir = Path::new("workdir");
+        let source_folder = workdir.join(test_name);
+        let target_folder = workdir.join(format!("{test_name}.out"));
 
-        if target_folder.exists() {
-            remove_dir_all(&target_folder).expect("Couldn't remove targetr_folder");
-        }
+        // if target_folder.exists() {
+        //     remove_dir_all(&target_folder).expect("Couldn't remove targetr_folder");
+        // }
 
         bencher.iter(|| {
+            if target_folder.exists() {
+                remove_dir_all(&target_folder).expect("Couldn't remove targetr_folder");
+            }
             umkansanize(&source_folder, &target_folder);
         })
     }
+
     #[bench]
-    fn bench_test_folders(bencher: &mut Bencher) {
+    fn string_push(bencher: &mut Bencher) {
+        bencher.iter(|| {
+            let mut s = String::new();
+            let note = 'a';
+            let mut duration = 1;
+
+            for _ in 0..10000 {
+                s.push(note);
+                s.push_str(&duration.to_string());
+                duration = (duration + 1) % 20;
+            }
+        })
+    }
+
+    #[bench]
+    fn string_format(bencher: &mut Bencher) {
+        bencher.iter(|| {
+            let mut s = String::new();
+            let note = 'a';
+            let mut duration = 1;
+
+            for _ in 0..10000 {
+                s.push_str(&format!("{note}{duration}"));
+                duration = (duration + 1) % 20;
+            }
+        })
+    }
+
+    #[bench]
+    fn string_write(bencher: &mut Bencher) {
+        bencher.iter(|| {
+            let mut s = String::new();
+            let note = 'a';
+            let mut duration = 1;
+
+            for _ in 0..10000 {
+                write!(s, "{note}{duration}").unwrap();
+                duration = (duration + 1) % 20;
+            }
+        })
+    }
+
+    #[bench]
+    fn string_vec_join(bencher: &mut Bencher) {
+        bencher.iter(|| {
+            let mut s = vec![];
+            let note = 'a';
+            let mut duration = 1;
+
+            for _ in 0..10000 {
+                s.push(format!("{note}{duration}"));
+                duration = (duration + 1) % 20;
+            }
+
+            let a = s.join("");
+            a
+        })
+    }
+
+    #[bench]
+    fn bench_test_01(bencher: &mut Bencher) {
         run_on_folder("test01", bencher);
+    }
+
+    #[bench]
+    fn bench_test_02(bencher: &mut Bencher) {
         run_on_folder("test02", bencher);
+    }
+    #[bench]
+    fn bench_test_03(bencher: &mut Bencher) {
         run_on_folder("test03", bencher);
+    }
+    #[bench]
+    fn bench_test_04(bencher: &mut Bencher) {
         run_on_folder("test04", bencher);
+    }
+    #[bench]
+    fn bench_test_05(bencher: &mut Bencher) {
         run_on_folder("test05", bencher);
+    }
+    #[bench]
+    fn bench_test_06(bencher: &mut Bencher) {
         run_on_folder("test06", bencher);
+    }
+    #[bench]
+    fn bench_test_07(bencher: &mut Bencher) {
         run_on_folder("test07", bencher);
+    }
+    #[bench]
+    fn bench_test_08(bencher: &mut Bencher) {
         run_on_folder("test08", bencher);
+    }
+    #[bench]
+    fn bench_test_09(bencher: &mut Bencher) {
         run_on_folder("test09", bencher);
+    }
+    #[bench]
+    fn bench_test_10(bencher: &mut Bencher) {
         run_on_folder("test10", bencher);
     }
 
@@ -132,7 +226,3 @@ mod tests {
         check_filesystem("test10")
     }
 }
-
-// .expect("String doesn't start with \"")
-// .expect("String doesn't end with \"")
-// .expect("Index file has bad format!")
