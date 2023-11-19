@@ -30,6 +30,7 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
         .collect();
 
     let (tx, rx) = channel();
+    // let mut songs = vec![];
 
     for (title, file) in index {
         let title = title.to_owned();
@@ -39,7 +40,7 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
         let tx = tx.clone();
 
         spawn(move || {
-            let musical_score: Vec<_> = read(source_folder.join(&file))
+            let score: Vec<_> = read(source_folder.join(&file))
                 .unwrap()
                 .iter()
                 .map(|byte| match byte {
@@ -55,7 +56,7 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
             let mut note = None;
             let mut s = String::new();
 
-            for staff in musical_score.split(|char| char == &'\n') {
+            for staff in score.split(|char| char == &'\n') {
                 for &symbol in staff.iter().rev() {
                     if symbol != '#' && symbol != 'b' {
                         song_duration += 1;
@@ -115,11 +116,18 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
                 Normal(note, duration) => write!(s, "{note}{duration}"),
                 Accidental(note, duration, accidental) => write!(s, "{note}{accidental}{duration}"),
                 Unknown(note, d, accidental) => write!(s, "{note}{accidental}{d}{note}1"),
-                _ => unreachable!(),
+                _ => Ok(()), // _ => unreachable!(),
             }
             .unwrap();
 
-            create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
+            let path = target_folder.join(&file);
+            let path = path.parent().unwrap();
+            if !path.exists() {
+                create_dir_all(path).unwrap();
+            }
+            // create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
+            // target_folder.join(&file).parent().unwrap();
+            // create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
             write(
                 target_folder
                     .join(file)
@@ -128,6 +136,7 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
                 s,
             )
             .unwrap();
+            // songs.push((title.to_string(), song_duration));
             tx.send((title.to_string(), song_duration)).unwrap();
         });
     }
@@ -148,6 +157,7 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
     // songs_durations
 }
 // https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=7f49e2da3b52d8887aa0e18425121e1f
+// Copy dirs https://stackoverflow.com/questions/26958489/how-to-copy-a-folder-recursively-in-rust
 
 // TODO: make this cleaner
 // let mut songs: Vec<(&String, &usize)> = songs_durations.iter().collect();
@@ -163,3 +173,9 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
 // {
 //     create_dir_all(path).unwrap();
 // }
+// let cnt = index.len() as i32;
+// println!("{}\n{cnt} files number", source_folder.to_str().unwrap());
+// let mut d = 0;
+// d += duration;
+// println!("Average duration {}\n", d / cnt);
+//
