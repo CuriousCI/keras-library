@@ -17,6 +17,8 @@ enum Note {
 
 use Note::*;
 
+// static POOL_SIZE: u8 = 8;
+
 // pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
 pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
     let index = read_to_string(source_folder.join("index.txt"))
@@ -29,121 +31,120 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
         .filter_map(|line| line.split_once('\r'))
         .collect();
 
-    let (tx, rx) = channel();
-    // let mut songs = vec![];
+    // let (tx, rx) = channel();
+
+    let mut songs = vec![];
 
     for (title, file) in index {
-        let title = title.to_owned();
-        let file = file.to_owned();
-        let source_folder = source_folder.to_owned();
-        let target_folder = target_folder.to_owned();
-        let tx = tx.clone();
+        // let title = title.to_owned();
+        // let file = file.to_owned();
+        // let source_folder = source_folder.to_owned();
+        // let target_folder = target_folder.to_owned();
+        // let tx = tx.clone();
 
-        spawn(move || {
-            let score: Vec<_> = read(source_folder.join(&file))
-                .unwrap()
-                .iter()
-                .map(|byte| match byte {
-                    10 => '\n',
-                    32 => 'P',
-                    43 => '#',
-                    45 => 'b',
-                    byte => (byte + 17) as char,
-                })
-                .collect();
+        // spawn(move || {
+        let score: Vec<_> = read(source_folder.join(&file))
+            .unwrap()
+            .iter()
+            .map(|byte| match byte {
+                10 => '\n',
+                32 => 'P',
+                43 => '#',
+                45 => 'b',
+                byte => (byte + 17) as char,
+            })
+            .collect();
 
-            let mut song_duration = 0;
-            let mut note = None;
-            let mut s = String::new();
+        let mut duration = 0;
+        let mut note = None;
+        let mut s = String::new();
 
-            for staff in score.split(|char| char == &'\n') {
-                for &symbol in staff.iter().rev() {
-                    if symbol != '#' && symbol != 'b' {
-                        song_duration += 1;
-                    }
+        for staff in score.split(|char| char == &'\n') {
+            for &symbol in staff.iter().rev() {
+                if symbol != '#' && symbol != 'b' {
+                    duration += 1;
+                }
 
-                    note = match note {
-                        None => Normal(symbol, 1),
-                        Normal(note, duration) => match symbol {
-                            '#' | 'b' => {
-                                if duration > 1 {
-                                    write!(s, "{note}{}", duration - 1).unwrap();
-                                }
-
-                                Accidental(note, 1, symbol)
+                note = match note {
+                    None => Normal(symbol, 1),
+                    Normal(note, duration) => match symbol {
+                        '#' | 'b' => {
+                            if duration > 1 {
+                                write!(s, "{note}{}", duration - 1).unwrap();
                             }
-                            _ => {
-                                if symbol == note {
-                                    Normal(note, duration + 1)
-                                } else {
-                                    write!(s, "{note}{duration}").unwrap();
-                                    Normal(symbol, 1)
-                                }
-                            }
-                        },
-                        Accidental(note, duration, accidental) => {
+
+                            Accidental(note, 1, symbol)
+                        }
+                        _ => {
                             if symbol == note {
-                                Unknown(note, duration, accidental)
+                                Normal(note, duration + 1)
                             } else {
-                                write!(s, "{note}{accidental}{duration}").unwrap();
+                                write!(s, "{note}{duration}").unwrap();
                                 Normal(symbol, 1)
                             }
                         }
-                        Unknown(note, duration, accidental) => match symbol {
-                            '#' | 'b' => {
-                                if symbol != accidental {
-                                    write!(s, "{note}{accidental}{duration}").unwrap();
-                                    Accidental(note, 1, symbol)
-                                } else {
-                                    Accidental(note, duration + 1, accidental)
-                                }
-                            }
-                            _ => {
-                                if symbol == note {
-                                    write!(s, "{note}{accidental}{duration}").unwrap();
-                                    Normal(note, 2)
-                                } else {
-                                    write!(s, "{note}{accidental}{duration}{note}1").unwrap();
-                                    Normal(symbol, 1)
-                                }
-                            }
-                        },
+                    },
+                    Accidental(note, duration, accidental) => {
+                        if symbol == note {
+                            Unknown(note, duration, accidental)
+                        } else {
+                            write!(s, "{note}{accidental}{duration}").unwrap();
+                            Normal(symbol, 1)
+                        }
                     }
+                    Unknown(note, duration, accidental) => match symbol {
+                        '#' | 'b' => {
+                            if symbol != accidental {
+                                write!(s, "{note}{accidental}{duration}").unwrap();
+                                Accidental(note, 1, symbol)
+                            } else {
+                                Accidental(note, duration + 1, accidental)
+                            }
+                        }
+                        _ => {
+                            if symbol == note {
+                                write!(s, "{note}{accidental}{duration}").unwrap();
+                                Normal(note, 2)
+                            } else {
+                                write!(s, "{note}{accidental}{duration}{note}1").unwrap();
+                                Normal(symbol, 1)
+                            }
+                        }
+                    },
                 }
             }
+        }
 
-            match note {
-                Normal(note, duration) => write!(s, "{note}{duration}"),
-                Accidental(note, duration, accidental) => write!(s, "{note}{accidental}{duration}"),
-                Unknown(note, d, accidental) => write!(s, "{note}{accidental}{d}{note}1"),
-                _ => Ok(()), // _ => unreachable!(),
-            }
-            .unwrap();
+        match note {
+            Normal(note, duration) => write!(s, "{note}{duration}"),
+            Accidental(note, duration, accidental) => write!(s, "{note}{accidental}{duration}"),
+            Unknown(note, d, accidental) => write!(s, "{note}{accidental}{d}{note}1"),
+            _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
+        }
+        .unwrap();
 
-            let path = target_folder.join(&file);
-            let path = path.parent().unwrap();
-            if !path.exists() {
-                create_dir_all(path).unwrap();
-            }
-            // create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
-            // target_folder.join(&file).parent().unwrap();
-            // create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
-            write(
-                target_folder
-                    .join(file)
-                    .with_file_name(&title)
-                    .with_extension(".txt"),
-                s,
-            )
-            .unwrap();
-            // songs.push((title.to_string(), song_duration));
-            tx.send((title.to_string(), song_duration)).unwrap();
-        });
+        let path = target_folder.join(&file);
+        let path = path.parent().unwrap();
+        if !path.exists() {
+            create_dir_all(path).unwrap();
+        }
+
+        write(
+            target_folder
+                .join(file)
+                .with_file_name(&title)
+                .with_extension(".txt"),
+            s,
+        )
+        .unwrap();
+        songs.push((title, duration));
+        // tx.send((title, duration)).unwrap();
+        // });
     }
 
-    drop(tx);
+    // drop(tx);
 
-    let mut songs: Vec<(String, i32)> = rx.iter().collect();
+    // let mut songs: Vec<_> = rx.iter().collect();
     songs.sort_by_key(|(title, duration)| (-duration, title.to_owned()));
 
     let mut s = String::new();
@@ -156,6 +157,7 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
     // songs.into_iter().collect()
     // songs_durations
 }
+
 // https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=7f49e2da3b52d8887aa0e18425121e1f
 // Copy dirs https://stackoverflow.com/questions/26958489/how-to-copy-a-folder-recursively-in-rust
 
@@ -179,3 +181,22 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
 // d += duration;
 // println!("Average duration {}\n", d / cnt);
 //
+// create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
+// target_folder.join(&file).parent().unwrap();
+// create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
+// songs.push((title.to_string(), song_duration));
+// create_dir(target_folder).unwrap();
+// let mut directories: Vec<_> = index
+//     .iter()
+//     .map(|(_, file)| target_folder.join(file).parent().unwrap().to_owned())
+//     .collect();
+// directories.sort();
+// for directory in directories {
+//     match create_dir(directory) {
+//         Ok(_) => (),
+//         Err(_) => (),
+//     };
+// }
+// let mut songs = vec![];
+// let mut songs: Vec<(String, i32)> = rx.iter().collect();
+// songs.push((title, duration));

@@ -267,3 +267,50 @@
 //         }
 //     },
 // }
+
+
+
+
+
+
+
+
+
+running 10 tests # Yes threads
+test tests::tests::bench_test_01   ... bench:   1,183,908 ns/iter (+/- 30,653)
+test tests::tests::bench_test_02   ... bench:   1,281,379 ns/iter (+/- 53,230)
+test tests::tests::bench_test_03   ... bench:  44,466,304 ns/iter (+/- 1,316,947)
+test tests::tests::bench_test_04   ... bench:   1,363,250 ns/iter (+/- 107,699)
+test tests::tests::bench_test_05   ... bench:   3,235,939 ns/iter (+/- 210,398)
+test tests::tests::bench_test_06   ... bench:   1,685,311 ns/iter (+/- 37,343)
+test tests::tests::bench_test_07   ... bench:   2,643,796 ns/iter (+/- 65,278)
+test tests::tests::bench_test_08   ... bench:   1,849,036 ns/iter (+/- 130,668)
+test tests::tests::bench_test_09   ... bench:   1,412,082 ns/iter (+/- 132,278)
+test tests::tests::bench_test_10   ... bench:  31,604,413 ns/iter (+/- 696,966)
+
+
+
+running 10 tests # No threads
+test tests::tests::bench_test_01   ... bench:   1,446,476 ns/iter (+/- 20,632)
+test tests::tests::bench_test_02   ... bench:   1,656,533 ns/iter (+/- 97,784)
+test tests::tests::bench_test_03   ... bench:  58,458,353 ns/iter (+/- 2,189,421)
+test tests::tests::bench_test_04   ... bench:   2,016,327 ns/iter (+/- 160,664)
+test tests::tests::bench_test_05   ... bench:   4,740,715 ns/iter (+/- 133,576)
+test tests::tests::bench_test_06   ... bench:   2,105,034 ns/iter (+/- 33,914)
+test tests::tests::bench_test_07   ... bench:   4,631,728 ns/iter (+/- 197,693)
+test tests::tests::bench_test_08   ... bench:   2,831,641 ns/iter (+/- 89,496)
+test tests::tests::bench_test_09   ... bench:   1,897,260 ns/iter (+/- 85,845)
+test tests::tests::bench_test_10   ... bench:  60,034,758 ns/iter (+/- 2,642,784)
+
+
+running 10 tests # 8 threads
+test tests::tests::bench_test_01   ... bench:   1,606,120 ns/iter (+/- 183,275)
+test tests::tests::bench_test_02   ... bench:   1,843,764 ns/iter (+/- 444,383)
+test tests::tests::bench_test_03   ... bench:  35,054,879 ns/iter (+/- 3,450,165)
+test tests::tests::bench_test_04   ... bench:   1,678,936 ns/iter (+/- 130,252)
+test tests::tests::bench_test_05   ... bench:   3,499,648 ns/iter (+/- 972,569)
+test tests::tests::bench_test_06   ... bench:   2,100,964 ns/iter (+/- 111,169)
+test tests::tests::bench_test_07   ... bench:   3,404,194 ns/iter (+/- 214,892)
+test tests::tests::bench_test_08   ... bench:   2,528,947 ns/iter (+/- 340,343)
+test tests::tests::bench_test_09   ... bench:   1,666,374 ns/iter (+/- 170,261)
+test tests::tests::bench_test_10   ... bench:  31,755,653 ns/iter (+/- 2,417,598)
