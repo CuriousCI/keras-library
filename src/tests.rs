@@ -41,6 +41,36 @@ mod tests {
     }
 
     #[bench]
+    fn sort_stable(bencher: &mut Bencher) {
+        let source_folder = Path::new("D:/university/python/hw4-rust/workdir/test03/");
+        let index = read_to_string(source_folder.join("index.txt")).unwrap();
+
+        let mut index: Vec<_> = index
+            .lines()
+            .map(|line| (line, line.len() as i32))
+            .collect();
+
+        bencher.iter(|| {
+            index.sort_by_key(|(line, len)| (-len, line.to_owned()));
+        })
+    }
+
+    #[bench]
+    fn sort_unstable(bencher: &mut Bencher) {
+        let source_folder = Path::new("D:/university/python/hw4-rust/workdir/test03/");
+        let index = read_to_string(source_folder.join("index.txt")).unwrap();
+
+        let mut index: Vec<_> = index
+            .lines()
+            .map(|line| (line, line.len() as i32))
+            .collect();
+
+        bencher.iter(|| {
+            index.sort_unstable_by_key(|(line, len)| (-len, line.to_owned()));
+        })
+    }
+
+    #[bench]
     fn string_format(bencher: &mut Bencher) {
         bencher.iter(|| {
             let mut s = String::new();

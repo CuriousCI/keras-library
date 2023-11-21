@@ -123,7 +123,7 @@ pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'
         songs.push((title, duration));
     }
 
-    songs.sort_by_key(|(title, duration)| (-duration, title.to_owned()));
+    songs.sort_unstable_by_key(|(title, duration)| (-duration, title.to_owned()));
 
     let mut s = String::new();
     for (title, duration) in songs.iter() {
