@@ -1,6 +1,3 @@
-#![feature(test)]
-pub mod tests;
-
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::fs::{create_dir_all, read, read_to_string, write};
@@ -35,7 +32,7 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
 
     // let channels = [channel(), channel(), channel(), channel(), channel()];
 
-    let pool_size = index.len() * 10 / 100;
+    let pool_size = 8;
     let mut channels = vec![];
     for _ in 0..pool_size {
         let (tx, rx) = channel();
@@ -154,109 +151,6 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
         transmitter
             .send((title.to_string(), file.to_string()))
             .unwrap();
-        //     let title = title.to_owned();
-        //     let file = file.to_owned();
-        //     let source_folder = source_folder.to_owned();
-        //     let target_folder = target_folder.to_owned();
-        //     let tx = tx.clone();
-        //
-        //     spawn(move || {
-        //         let score: Vec<_> = read(source_folder.join(&file))
-        //             .unwrap()
-        //             .iter()
-        //             .map(|byte| match byte {
-        //                 10 => '\n',
-        //                 32 => 'P',
-        //                 43 => '#',
-        //                 45 => 'b',
-        //                 byte => (byte + 17) as char,
-        //             })
-        //             .collect();
-        //
-        //         let mut duration = 0;
-        //         let mut note = None;
-        //         let mut s = String::new();
-        //
-        //         for staff in score.split(|char| char == &'\n') {
-        //             for &symbol in staff.iter().rev() {
-        //                 if symbol != '#' && symbol != 'b' {
-        //                     duration += 1;
-        //                 }
-        //
-        //                 note = match note {
-        //                     None => Normal(symbol, 1),
-        //                     Normal(note, duration) => match symbol {
-        //                         '#' | 'b' => {
-        //                             if duration > 1 {
-        //                                 write!(s, "{note}{}", duration - 1).unwrap();
-        //                             }
-        //
-        //                             Accidental(note, 1, symbol)
-        //                         }
-        //                         _ => {
-        //                             if symbol == note {
-        //                                 Normal(note, duration + 1)
-        //                             } else {
-        //                                 write!(s, "{note}{duration}").unwrap();
-        //                                 Normal(symbol, 1)
-        //                             }
-        //                         }
-        //                     },
-        //                     Accidental(note, duration, accidental) => {
-        //                         if symbol == note {
-        //                             Unknown(note, duration, accidental)
-        //                         } else {
-        //                             write!(s, "{note}{accidental}{duration}").unwrap();
-        //                             Normal(symbol, 1)
-        //                         }
-        //                     }
-        //                     Unknown(note, duration, accidental) => match symbol {
-        //                         '#' | 'b' => {
-        //                             if symbol != accidental {
-        //                                 write!(s, "{note}{accidental}{duration}").unwrap();
-        //                                 Accidental(note, 1, symbol)
-        //                             } else {
-        //                                 Accidental(note, duration + 1, accidental)
-        //                             }
-        //                         }
-        //                         _ => {
-        //                             if symbol == note {
-        //                                 write!(s, "{note}{accidental}{duration}").unwrap();
-        //                                 Normal(note, 2)
-        //                             } else {
-        //                                 write!(s, "{note}{accidental}{duration}{note}1").unwrap();
-        //                                 Normal(symbol, 1)
-        //                             }
-        //                         }
-        //                     },
-        //                 }
-        //             }
-        //         }
-        //
-        //         match note {
-        //             Normal(note, duration) => write!(s, "{note}{duration}"),
-        //             Accidental(note, duration, accidental) => write!(s, "{note}{accidental}{duration}"),
-        //             Unknown(note, d, accidental) => write!(s, "{note}{accidental}{d}{note}1"),
-        //             _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
-        //         }
-        //         .unwrap();
-        //
-        //         let path = target_folder.join(&file);
-        //         let path = path.parent().unwrap();
-        //         if !path.exists() {
-        //             create_dir_all(path).unwrap();
-        //         }
-        //
-        //         write(
-        //             target_folder
-        //                 .join(file)
-        //                 .with_file_name(&title)
-        //                 .with_extension(".txt"),
-        //             s,
-        //         )
-        //         .unwrap();
-        //         tx.send((title, duration)).unwrap();
-        // });
     }
 
     // drop(tx);

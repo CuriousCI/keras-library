@@ -1,12 +1,10 @@
 #![feature(test)]
 pub mod tests;
+pub mod thread;
 
-use std::collections::HashMap;
 use std::fmt::Write;
 use std::fs::{create_dir_all, read, read_to_string, write};
 use std::path::Path;
-use std::sync::mpsc::channel;
-use std::thread::spawn;
 
 enum Note {
     None,
@@ -16,8 +14,6 @@ enum Note {
 }
 
 use Note::*;
-
-// static POOL_SIZE: u8 = 8;
 
 // pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
 pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
@@ -31,18 +27,9 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
         .filter_map(|line| line.split_once('\r'))
         .collect();
 
-    // let (tx, rx) = channel();
-
     let mut songs = vec![];
 
     for (title, file) in index {
-        // let title = title.to_owned();
-        // let file = file.to_owned();
-        // let source_folder = source_folder.to_owned();
-        // let target_folder = target_folder.to_owned();
-        // let tx = tx.clone();
-
-        // spawn(move || {
         let score: Vec<_> = read(source_folder.join(&file))
             .unwrap()
             .iter()
@@ -137,14 +124,10 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
             s,
         )
         .unwrap();
+
         songs.push((title, duration));
-        // tx.send((title, duration)).unwrap();
-        // });
     }
 
-    // drop(tx);
-
-    // let mut songs: Vec<_> = rx.iter().collect();
     songs.sort_by_key(|(title, duration)| (-duration, title.to_owned()));
 
     let mut s = String::new();

@@ -5,20 +5,18 @@ mod tests {
     use std::fmt::Write;
     use test::Bencher;
 
-    fn run_on_folder(test_name: &str, bencher: &mut Bencher) {
+    fn run_on_folder(test_name: &str, bencher: &mut Bencher, f: &dyn Fn(&Path, &Path) -> ()) {
         let workdir = Path::new("workdir");
         let source_folder = workdir.join(test_name);
         let target_folder = workdir.join(format!("{test_name}.out"));
 
-        // if target_folder.exists() {
-        //     remove_dir_all(&target_folder).expect("Couldn't remove targetr_folder");
-        // }
-
         bencher.iter(|| {
             if target_folder.exists() {
-                remove_dir_all(&target_folder).expect("Couldn't remove targetr_folder");
+                remove_dir_all(&target_folder).expect("Couldn't remove target_folder");
             }
-            umkansanize(&source_folder, &target_folder);
+
+            f(&source_folder, &target_folder);
+            // umkansanize(&source_folder, &target_folder);
         })
     }
 
@@ -84,47 +82,155 @@ mod tests {
 
     #[bench]
     fn bench_test_01(bencher: &mut Bencher) {
-        run_on_folder("test01", bencher);
+        run_on_folder("test01", bencher, &umkansanize);
     }
 
     #[bench]
     fn bench_test_02(bencher: &mut Bencher) {
-        run_on_folder("test02", bencher);
-    }
-    #[bench]
-    fn bench_test_03(bencher: &mut Bencher) {
-        run_on_folder("test03", bencher);
-    }
-    #[bench]
-    fn bench_test_04(bencher: &mut Bencher) {
-        run_on_folder("test04", bencher);
-    }
-    #[bench]
-    fn bench_test_05(bencher: &mut Bencher) {
-        run_on_folder("test05", bencher);
-    }
-    #[bench]
-    fn bench_test_06(bencher: &mut Bencher) {
-        run_on_folder("test06", bencher);
-    }
-    #[bench]
-    fn bench_test_07(bencher: &mut Bencher) {
-        run_on_folder("test07", bencher);
-    }
-    #[bench]
-    fn bench_test_08(bencher: &mut Bencher) {
-        run_on_folder("test08", bencher);
-    }
-    #[bench]
-    fn bench_test_09(bencher: &mut Bencher) {
-        run_on_folder("test09", bencher);
-    }
-    #[bench]
-    fn bench_test_10(bencher: &mut Bencher) {
-        run_on_folder("test10", bencher);
+        run_on_folder("test02", bencher, &umkansanize);
     }
 
-    use crate::umkansanize;
+    // #[bench]
+    // fn bench_test_03(bencher: &mut Bencher) {
+    //     run_on_folder("test03", bencher, &umkansanize);
+    // }
+
+    #[bench]
+    fn bench_test_04(bencher: &mut Bencher) {
+        run_on_folder("test04", bencher, &umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_05(bencher: &mut Bencher) {
+        run_on_folder("test05", bencher, &umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_06(bencher: &mut Bencher) {
+        run_on_folder("test06", bencher, &umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_07(bencher: &mut Bencher) {
+        run_on_folder("test07", bencher, &umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_08(bencher: &mut Bencher) {
+        run_on_folder("test08", bencher, &umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_09(bencher: &mut Bencher) {
+        run_on_folder("test09", bencher, &umkansanize);
+    }
+
+    // #[bench]
+    // fn bench_test_10(bencher: &mut Bencher) {
+    //     run_on_folder("test10", bencher, &umkansanize);
+    // }
+
+    #[bench]
+    fn bench_test_threads_01(bencher: &mut Bencher) {
+        run_on_folder("test01", bencher, &thread::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_threads_02(bencher: &mut Bencher) {
+        run_on_folder("test02", bencher, &thread::umkansanize);
+    }
+
+    // #[bench]
+    // fn bench_test_threads_03(bencher: &mut Bencher) {
+    //     run_on_folder("test03", bencher, &thread::umkansanize);
+    // }
+
+    #[bench]
+    fn bench_test_threads_04(bencher: &mut Bencher) {
+        run_on_folder("test04", bencher, &thread::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_threads_05(bencher: &mut Bencher) {
+        run_on_folder("test05", bencher, &thread::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_threads_06(bencher: &mut Bencher) {
+        run_on_folder("test06", bencher, &thread::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_threads_07(bencher: &mut Bencher) {
+        run_on_folder("test07", bencher, &thread::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_threads_08(bencher: &mut Bencher) {
+        run_on_folder("test08", bencher, &thread::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_threads_09(bencher: &mut Bencher) {
+        run_on_folder("test09", bencher, &thread::umkansanize);
+    }
+
+    // #[bench]
+    // fn bench_test_threads_10(bencher: &mut Bencher) {
+    //     run_on_folder("test10", bencher, &thread::umkansanize);
+    // }
+
+    #[bench]
+    fn bench_test_pool_01(bencher: &mut Bencher) {
+        run_on_folder("test01", bencher, &thread::pool::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_pool_02(bencher: &mut Bencher) {
+        run_on_folder("test02", bencher, &thread::pool::umkansanize);
+    }
+
+    // #[bench]
+    // fn bench_test_pool_03(bencher: &mut Bencher) {
+    //     run_on_folder("test03", bencher, &thread::pool::umkansanize);
+    // }
+
+    #[bench]
+    fn bench_test_pool_04(bencher: &mut Bencher) {
+        run_on_folder("test04", bencher, &thread::pool::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_pool_05(bencher: &mut Bencher) {
+        run_on_folder("test05", bencher, &thread::pool::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_pool_06(bencher: &mut Bencher) {
+        run_on_folder("test06", bencher, &thread::pool::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_pool_07(bencher: &mut Bencher) {
+        run_on_folder("test07", bencher, &thread::pool::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_pool_08(bencher: &mut Bencher) {
+        run_on_folder("test08", bencher, &thread::pool::umkansanize);
+    }
+
+    #[bench]
+    fn bench_test_pool_09(bencher: &mut Bencher) {
+        run_on_folder("test09", bencher, &thread::pool::umkansanize);
+    }
+
+    // #[bench]
+    // fn bench_test_pool_10(bencher: &mut Bencher) {
+    //     run_on_folder("test10", bencher, &thread::pool::umkansanize);
+    // }
+
+    use crate::{thread, umkansanize};
     use std::fs::{read_to_string, remove_dir_all};
     use std::path::{Path, PathBuf};
 
