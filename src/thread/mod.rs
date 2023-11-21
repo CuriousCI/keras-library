@@ -16,25 +16,25 @@ enum Note {
 
 use Note::*;
 
-// static POOL_SIZE: u8 = 8;
+pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'a str, i32> {
+    let index = read_to_string(source_folder.join("index.txt")).unwrap();
+    // .replace("\" \"", "\r")
+    // .replace('"', "");
 
-// pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
-pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
-    let index = read_to_string(source_folder.join("index.txt"))
-        .unwrap()
-        .replace("\" \"", "\r")
-        .replace('"', "");
-
-    let index: Vec<(&str, &str)> = index
-        .split('\n')
-        .filter_map(|line| line.split_once('\r'))
-        .collect();
+    // let index: Vec<(&str, &str)> = index
+    //     .split('\n')
+    //     .filter_map(|line| line.split_once('\r'))
+    //     .collect();
 
     let (tx, rx) = channel();
 
     // let mut songs = vec![];
 
-    for (title, file) in index {
+    for (title, file) in index.split('\n').filter_map(|line| {
+        line.strip_prefix('"')
+            .and_then(|s| s.strip_suffix('"').and_then(|s| s.split_once("\" \"")))
+    }) {
+        // for (title, file) in index {
         let title = title.to_owned();
         let file = file.to_owned();
         let source_folder = source_folder.to_owned();
@@ -147,11 +147,13 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
     songs.sort_by_key(|(title, duration)| (-duration, title.to_owned()));
 
     let mut s = String::new();
-    for (title, duration) in songs {
+    for (title, duration) in songs.iter() {
         write!(s, "\"{title}\" {duration}\n").unwrap();
     }
     write(target_folder.join("index.txt"), s).unwrap();
 
+    HashMap::new()
+    // songs.iter().map(ToOwned::to_owned).collect()
     // songs.into_iter().collect()
     // songs.into_iter().collect()
     // songs_durations

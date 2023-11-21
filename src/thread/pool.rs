@@ -14,33 +14,25 @@ enum Note {
 
 use Note::*;
 
-// static POOL_SIZE: u8 = 8;
+// static POOL_SIZE: usize = 12;
 
-// pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
-pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
-    let index = read_to_string(source_folder.join("index.txt"))
-        .unwrap()
-        .replace("\" \"", "\r")
-        .replace('"', "");
+pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'a str, i32> {
+    let index = read_to_string(source_folder.join("index.txt")).unwrap();
 
-    let index: Vec<(&str, &str)> = index
-        .split('\n')
-        .filter_map(|line| line.split_once('\r'))
-        .collect();
+    if index.len() < 16 {
+        return crate::umkansanize(source_folder, target_folder);
+    }
 
     let (trx, rrx) = channel();
-
-    // let channels = [channel(), channel(), channel(), channel(), channel()];
-
-    let pool_size = 8;
     let mut channels = vec![];
-    for _ in 0..pool_size {
+
+    let POOL_SIZE = 12.min(index.len() / 4);
+
+    for _ in 0..POOL_SIZE {
         let (tx, rx) = channel();
-        let trx = trx.clone();
+        let trx = trx.to_owned();
         let source_folder = source_folder.to_owned();
         let target_folder = target_folder.to_owned();
-
-        channels.push(tx.to_owned());
 
         spawn(move || {
             for (title, file) in rx.iter() {
@@ -143,74 +135,57 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
                 trx.send((title, duration)).unwrap();
             }
         });
+
+        channels.push(tx.to_owned());
     }
 
-    for (id, (title, file)) in index.iter().enumerate() {
-        let transmitter = channels[id % pool_size].to_owned();
-
+    for (id, (title, file)) in index
+        .split('\n')
+        .filter_map(|line| {
+            line.strip_prefix('"')
+                .and_then(|s| s.strip_suffix('"').and_then(|s| s.split_once("\" \"")))
+        })
+        .enumerate()
+    {
+        let transmitter = channels[id % POOL_SIZE].to_owned();
         transmitter
-            .send((title.to_string(), file.to_string()))
+            .send((title.to_owned(), file.to_owned()))
             .unwrap();
     }
 
-    // drop(tx);
     drop(trx);
     drop(channels);
 
-    // let mut songs: Vec<_> = rx.iter().collect();
     let mut songs: Vec<_> = rrx.iter().collect();
     songs.sort_by_key(|(title, duration)| (-duration, title.to_owned()));
 
     let mut s = String::new();
-    for (title, duration) in songs {
+    for (title, duration) in songs.iter() {
         write!(s, "\"{title}\" {duration}\n").unwrap();
     }
     write(target_folder.join("index.txt"), s).unwrap();
 
-    // songs.into_iter().collect()
-    // songs.into_iter().collect()
-    // songs_durations
+    HashMap::new()
+    // songs
+    //     .iter()
+    //     .map(ToOwned::to_owned)
+    //     // .map(|(title, duration)| (title, duration))
+    // .collect()
 }
 
 // https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=7f49e2da3b52d8887aa0e18425121e1f
 // Copy dirs https://stackoverflow.com/questions/26958489/how-to-copy-a-folder-recursively-in-rust
-
-// TODO: make this cleaner
-// let mut songs: Vec<(&String, &usize)> = songs_durations.iter().collect();
-// writeln!(index, "\"{}\" {}", song_name, songs_duration).unwrap();
-// let mut index = File::create(target_folder.join("index.txt")).unwrap();
-// for (song_name, songs_duration) in songs {
-//     writeln!(index, "\"{}\" {}", song_name, songs_duration).unwrap();
-// }
-// for path in index
-//     .iter()
-//     .map(|(_, file)| target_folder.join(file).parent().unwrap().to_owned())
-//     .collect::<HashSet<PathBuf>>()
-// {
-//     create_dir_all(path).unwrap();
-// }
-// let cnt = index.len() as i32;
-// println!("{}\n{cnt} files number", source_folder.to_str().unwrap());
-// let mut d = 0;
-// d += duration;
-// println!("Average duration {}\n", d / cnt);
-//
-// create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
-// target_folder.join(&file).parent().unwrap();
-// create_dir_all(target_folder.join(&file).parent().unwrap()).unwrap();
-// songs.push((title.to_string(), song_duration));
-// create_dir(target_folder).unwrap();
-// let mut directories: Vec<_> = index
-//     .iter()
-//     .map(|(_, file)| target_folder.join(file).parent().unwrap().to_owned())
+// .collect::<HashMap<(String, i32)>>();
+// songs.into_iter().collect()
+// songs.into_iter().collect()
+// songs_durations
+// let index: Vec<(&str, &str)> = index
+//     .split('\n')
+//     .filter_map(|line| line.split_once('\r'))
 //     .collect();
-// directories.sort();
-// for directory in directories {
-//     match create_dir(directory) {
-//         Ok(_) => (),
-//         Err(_) => (),
-//     };
-// }
-// let mut songs = vec![];
-// let mut songs: Vec<(String, i32)> = rx.iter().collect();
-// songs.push((title, duration));
+// for (id, (title, file)) in index
+//     .split('\n')
+//     .filter_map(|line| line.split_once('\r'))
+//     .enumerate()
+// {
+// for (id, (title, file)) in index.iter().enumerate() {

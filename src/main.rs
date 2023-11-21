@@ -1,4 +1,4 @@
-use keras::umkansanize;
+use keras::thread::pool::umkansanize;
 use std::{fs::remove_dir_all, path::Path};
 
 pub fn main() {
@@ -7,8 +7,8 @@ pub fn main() {
         "test10",
     ];
 
-    // let base_path = Path::new("/home/cicio/projects/keras-library/workdir/");
-    let base_path = Path::new("D:/university/python/hw4-rust/workdir");
+    let base_path = Path::new("/home/cicio/projects/keras-library/workdir/");
+    // let base_path = Path::new("D:/university/python/hw4-rust/workdir");
 
     for test in tests {
         remove_dir_all(base_path.join(format!("{test}.out"))).unwrap();

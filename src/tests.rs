@@ -2,10 +2,15 @@
 mod tests {
     extern crate test;
 
+    use std::collections::HashMap;
     use std::fmt::Write;
     use test::Bencher;
 
-    fn run_on_folder(test_name: &str, bencher: &mut Bencher, f: &dyn Fn(&Path, &Path) -> ()) {
+    fn run_on_folder<'a>(
+        test_name: &str,
+        bencher: &mut Bencher,
+        f: &dyn Fn(&Path, &Path) -> HashMap<&'a str, i32>,
+    ) {
         let workdir = Path::new("workdir");
         let source_folder = workdir.join(test_name);
         let target_folder = workdir.join(format!("{test_name}.out"));
@@ -81,154 +86,269 @@ mod tests {
     }
 
     #[bench]
-    fn bench_test_01(bencher: &mut Bencher) {
+    fn composition_01(bencher: &mut Bencher) {
+        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+
+        let index = read_to_string(source_folder.join("index.txt"))
+            .unwrap()
+            .replace("\" \"", "\r")
+            .replace('"', "");
+
+        bencher.iter(|| {
+            let index: Vec<_> = index
+                .split('\n')
+                .filter_map(|line| line.split_once('\r'))
+                .collect();
+
+            let mut songs = Vec::with_capacity(index.len());
+
+            for (title, file) in index {
+                songs.push((title, file))
+            }
+        })
+    }
+
+    #[bench]
+    fn composition_02(bencher: &mut Bencher) {
+        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+
+        let index = read_to_string(source_folder.join("index.txt"))
+            .unwrap()
+            .replace("\" \"", "\r")
+            .replace('"', "");
+
+        bencher.iter(|| {
+            let mut songs = vec![];
+
+            for (title, file) in index.split('\n').filter_map(|line| line.split_once('\r')) {
+                songs.push((title, file))
+            }
+        })
+    }
+
+    #[bench]
+    fn composition_03(bencher: &mut Bencher) {
+        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+
+        let index = read_to_string(source_folder.join("index.txt"))
+            .unwrap()
+            .replace("\" \"", "\r")
+            .replace('"', "");
+
+        bencher.iter(|| {
+            let mut songs = Vec::new();
+
+            for (title, file) in index.split('\n').filter_map(|line| line.split_once('\r')) {
+                songs.push((title, file))
+            }
+        })
+    }
+
+    #[bench]
+    fn separation_00(bencher: &mut Bencher) {
+        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+
+        let index = read_to_string(source_folder.join("index.txt")).unwrap();
+
+        bencher.iter(|| {
+            let index = index.replace("\" \"", "\r").replace('"', "");
+
+            for _x in index.lines().filter_map(|line| line.split_once('\r')) {}
+        })
+    }
+
+    #[bench]
+    fn separation_01(bencher: &mut Bencher) {
+        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+
+        let index = read_to_string(source_folder.join("index.txt")).unwrap();
+
+        bencher.iter(|| {
+            let index = index.replace("\" \"", "\r").replace('"', "");
+
+            for _x in index.split('\n').filter_map(|line| line.split_once('\r')) {}
+        })
+    }
+
+    #[bench]
+    fn separation_02(bencher: &mut Bencher) {
+        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+
+        let index = read_to_string(source_folder.join("index.txt")).unwrap();
+
+        bencher.iter(|| {
+            let index = index.replace('"', "\r");
+
+            for _x in index
+                .split('\n')
+                .filter_map(|line| line.trim().split_once("\r \r"))
+            {}
+        })
+    }
+
+    #[bench]
+    fn separation_03(bencher: &mut Bencher) {
+        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+
+        let index = read_to_string(source_folder.join("index.txt")).unwrap();
+
+        bencher.iter(|| {
+            for _x in index.split('\n').filter_map(|line| {
+                line.strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"').and_then(|s| s.split_once("\" \"")))
+            }) {}
+        })
+    }
+
+    #[bench]
+    fn fast_bench_test_01(bencher: &mut Bencher) {
         run_on_folder("test01", bencher, &umkansanize);
     }
 
     #[bench]
-    fn bench_test_02(bencher: &mut Bencher) {
+    fn fast_bench_test_02(bencher: &mut Bencher) {
         run_on_folder("test02", bencher, &umkansanize);
     }
 
-    // #[bench]
-    // fn bench_test_03(bencher: &mut Bencher) {
-    //     run_on_folder("test03", bencher, &umkansanize);
-    // }
+    #[bench]
+    fn slow_bench_test_03(bencher: &mut Bencher) {
+        run_on_folder("test03", bencher, &umkansanize);
+    }
 
     #[bench]
-    fn bench_test_04(bencher: &mut Bencher) {
+    fn fast_bench_test_04(bencher: &mut Bencher) {
         run_on_folder("test04", bencher, &umkansanize);
     }
 
     #[bench]
-    fn bench_test_05(bencher: &mut Bencher) {
+    fn fast_bench_test_05(bencher: &mut Bencher) {
         run_on_folder("test05", bencher, &umkansanize);
     }
 
     #[bench]
-    fn bench_test_06(bencher: &mut Bencher) {
+    fn fast_bench_test_06(bencher: &mut Bencher) {
         run_on_folder("test06", bencher, &umkansanize);
     }
 
     #[bench]
-    fn bench_test_07(bencher: &mut Bencher) {
+    fn fast_bench_test_07(bencher: &mut Bencher) {
         run_on_folder("test07", bencher, &umkansanize);
     }
 
     #[bench]
-    fn bench_test_08(bencher: &mut Bencher) {
+    fn fast_bench_test_08(bencher: &mut Bencher) {
         run_on_folder("test08", bencher, &umkansanize);
     }
 
     #[bench]
-    fn bench_test_09(bencher: &mut Bencher) {
+    fn fast_bench_test_09(bencher: &mut Bencher) {
         run_on_folder("test09", bencher, &umkansanize);
     }
 
-    // #[bench]
-    // fn bench_test_10(bencher: &mut Bencher) {
-    //     run_on_folder("test10", bencher, &umkansanize);
-    // }
+    #[bench]
+    fn slow_bench_test_10(bencher: &mut Bencher) {
+        run_on_folder("test10", bencher, &umkansanize);
+    }
 
     #[bench]
-    fn bench_test_threads_01(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_01(bencher: &mut Bencher) {
         run_on_folder("test01", bencher, &thread::umkansanize);
     }
 
     #[bench]
-    fn bench_test_threads_02(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_02(bencher: &mut Bencher) {
         run_on_folder("test02", bencher, &thread::umkansanize);
     }
 
-    // #[bench]
-    // fn bench_test_threads_03(bencher: &mut Bencher) {
-    //     run_on_folder("test03", bencher, &thread::umkansanize);
-    // }
+    #[bench]
+    fn slow_bench_test_threads_03(bencher: &mut Bencher) {
+        run_on_folder("test03", bencher, &thread::umkansanize);
+    }
 
     #[bench]
-    fn bench_test_threads_04(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_04(bencher: &mut Bencher) {
         run_on_folder("test04", bencher, &thread::umkansanize);
     }
 
     #[bench]
-    fn bench_test_threads_05(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_05(bencher: &mut Bencher) {
         run_on_folder("test05", bencher, &thread::umkansanize);
     }
 
     #[bench]
-    fn bench_test_threads_06(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_06(bencher: &mut Bencher) {
         run_on_folder("test06", bencher, &thread::umkansanize);
     }
 
     #[bench]
-    fn bench_test_threads_07(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_07(bencher: &mut Bencher) {
         run_on_folder("test07", bencher, &thread::umkansanize);
     }
 
     #[bench]
-    fn bench_test_threads_08(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_08(bencher: &mut Bencher) {
         run_on_folder("test08", bencher, &thread::umkansanize);
     }
 
     #[bench]
-    fn bench_test_threads_09(bencher: &mut Bencher) {
+    fn fast_bench_test_threads_09(bencher: &mut Bencher) {
         run_on_folder("test09", bencher, &thread::umkansanize);
     }
 
-    // #[bench]
-    // fn bench_test_threads_10(bencher: &mut Bencher) {
-    //     run_on_folder("test10", bencher, &thread::umkansanize);
-    // }
+    #[bench]
+    fn slow_bench_test_threads_10(bencher: &mut Bencher) {
+        run_on_folder("test10", bencher, &thread::umkansanize);
+    }
 
     #[bench]
-    fn bench_test_pool_01(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_01(bencher: &mut Bencher) {
         run_on_folder("test01", bencher, &thread::pool::umkansanize);
     }
 
     #[bench]
-    fn bench_test_pool_02(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_02(bencher: &mut Bencher) {
         run_on_folder("test02", bencher, &thread::pool::umkansanize);
     }
 
-    // #[bench]
-    // fn bench_test_pool_03(bencher: &mut Bencher) {
-    //     run_on_folder("test03", bencher, &thread::pool::umkansanize);
-    // }
+    #[bench]
+    fn slow_bench_test_pool_03(bencher: &mut Bencher) {
+        run_on_folder("test03", bencher, &thread::pool::umkansanize);
+    }
 
     #[bench]
-    fn bench_test_pool_04(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_04(bencher: &mut Bencher) {
         run_on_folder("test04", bencher, &thread::pool::umkansanize);
     }
 
     #[bench]
-    fn bench_test_pool_05(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_05(bencher: &mut Bencher) {
         run_on_folder("test05", bencher, &thread::pool::umkansanize);
     }
 
     #[bench]
-    fn bench_test_pool_06(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_06(bencher: &mut Bencher) {
         run_on_folder("test06", bencher, &thread::pool::umkansanize);
     }
 
     #[bench]
-    fn bench_test_pool_07(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_07(bencher: &mut Bencher) {
         run_on_folder("test07", bencher, &thread::pool::umkansanize);
     }
 
     #[bench]
-    fn bench_test_pool_08(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_08(bencher: &mut Bencher) {
         run_on_folder("test08", bencher, &thread::pool::umkansanize);
     }
 
     #[bench]
-    fn bench_test_pool_09(bencher: &mut Bencher) {
+    fn fast_bench_test_pool_09(bencher: &mut Bencher) {
         run_on_folder("test09", bencher, &thread::pool::umkansanize);
     }
 
-    // #[bench]
-    // fn bench_test_pool_10(bencher: &mut Bencher) {
-    //     run_on_folder("test10", bencher, &thread::pool::umkansanize);
-    // }
+    #[bench]
+    fn slow_bench_test_pool_10(bencher: &mut Bencher) {
+        run_on_folder("test10", bencher, &thread::pool::umkansanize);
+    }
 
     use crate::{thread, umkansanize};
     use std::fs::{read_to_string, remove_dir_all};

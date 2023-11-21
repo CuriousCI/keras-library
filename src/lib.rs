@@ -2,6 +2,7 @@
 pub mod tests;
 pub mod thread;
 
+use std::collections::HashMap;
 use std::fmt::Write;
 use std::fs::{create_dir_all, read, read_to_string, write};
 use std::path::Path;
@@ -15,22 +16,16 @@ enum Note {
 
 use Note::*;
 
-// pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
-pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
-    let index = read_to_string(source_folder.join("index.txt"))
-        .unwrap()
-        .replace("\" \"", "\r")
-        .replace('"', "");
-
-    let index: Vec<(&str, &str)> = index
-        .split('\n')
-        .filter_map(|line| line.split_once('\r'))
-        .collect();
+pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'a str, i32> {
+    let index = read_to_string(source_folder.join("index.txt")).unwrap();
 
     let mut songs = vec![];
 
-    for (title, file) in index {
-        let score: Vec<_> = read(source_folder.join(&file))
+    for (title, file) in index.split('\n').filter_map(|line| {
+        line.strip_prefix('"')
+            .and_then(|s| s.strip_suffix('"').and_then(|s| s.split_once("\" \"")))
+    }) {
+        let score: Vec<_> = read(source_folder.join(file))
             .unwrap()
             .iter()
             .map(|byte| match byte {
@@ -131,14 +126,19 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
     songs.sort_by_key(|(title, duration)| (-duration, title.to_owned()));
 
     let mut s = String::new();
-    for (title, duration) in songs {
+    for (title, duration) in songs.iter() {
         write!(s, "\"{title}\" {duration}\n").unwrap();
     }
     write(target_folder.join("index.txt"), s).unwrap();
 
-    // songs.into_iter().collect()
-    // songs.into_iter().collect()
-    // songs_durations
+    HashMap::new()
+
+    // songs.iter().map(ToOwned::to_owned).collect()
+    // songs.iter().map(ToOwned::to_owned).collect()
+    // songs
+    //     .iter()
+    //     .map(|&(title, duration)| (title.to_owned(), duration))
+    //     .collect()
 }
 
 // https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=7f49e2da3b52d8887aa0e18425121e1f
@@ -183,3 +183,9 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) {
 // let mut songs = vec![];
 // let mut songs: Vec<(String, i32)> = rx.iter().collect();
 // songs.push((title, duration));
+// songs.into_iter().collect()
+// songs.into_iter().collect()
+// songs_durations
+// for (title, file) in index.split('\n').filter_map(|line| line.split_once('\r')) {
+// .replace("\" \"", "\r")
+// .replace('"', "");
