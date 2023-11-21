@@ -4,25 +4,566 @@ mod tests {
 
     use std::collections::HashMap;
     use std::fmt::Write;
+    use std::fs::read;
     use test::Bencher;
 
-    fn run_on_folder<'a>(
-        test_name: &str,
-        bencher: &mut Bencher,
-        f: &dyn Fn(&Path, &Path) -> HashMap<&'a str, i32>,
-    ) {
-        let workdir = Path::new("workdir");
-        let source_folder = workdir.join(test_name);
-        let target_folder = workdir.join(format!("{test_name}.out"));
+    enum Note {
+        None,
+        Normal(char, usize),
+        Accidental(char, usize, char),
+        Unknown(char, usize, char),
+    }
+
+    use Note::*;
+
+    #[bench]
+    fn translation_01(bencher: &mut Bencher) {
+        let path =
+            Path::new("D:/university/python/hw4-rust/workdir/test10/0/03/032/0320/03201/0.txt");
+
+        let score: Vec<_> = read(path)
+            .unwrap()
+            .iter()
+            .map(|byte| match byte {
+                10 => '\n',
+                32 => 'P',
+                43 => '#',
+                45 => 'b',
+                byte => (byte + 17) as char,
+            })
+            .collect();
 
         bencher.iter(|| {
-            if target_folder.exists() {
-                remove_dir_all(&target_folder).expect("Couldn't remove target_folder");
+            let mut duration = 0;
+            let mut note = None;
+            let mut s = String::new();
+
+            for staff in score.split(|char| char == &'\n') {
+                for &symbol in staff.iter().rev() {
+                    if symbol != '#' && symbol != 'b' {
+                        duration += 1;
+                    }
+
+                    note = match note {
+                        None => Normal(symbol, 1),
+                        Normal(note, duration) => match symbol {
+                            '#' | 'b' => {
+                                if duration > 1 {
+                                    write!(s, "{note}{}", duration - 1).unwrap();
+                                }
+
+                                Accidental(note, 1, symbol)
+                            }
+                            _ => {
+                                if symbol == note {
+                                    Normal(note, duration + 1)
+                                } else {
+                                    write!(s, "{note}{duration}").unwrap();
+                                    Normal(symbol, 1)
+                                }
+                            }
+                        },
+                        Accidental(note, duration, accidental) => {
+                            if symbol == note {
+                                Unknown(note, duration, accidental)
+                            } else {
+                                write!(s, "{note}{accidental}{duration}").unwrap();
+                                Normal(symbol, 1)
+                            }
+                        }
+                        Unknown(note, duration, accidental) => match symbol {
+                            '#' | 'b' => {
+                                if symbol != accidental {
+                                    write!(s, "{note}{accidental}{duration}").unwrap();
+                                    Accidental(note, 1, symbol)
+                                } else {
+                                    Accidental(note, duration + 1, accidental)
+                                }
+                            }
+                            _ => {
+                                if symbol == note {
+                                    write!(s, "{note}{accidental}{duration}").unwrap();
+                                    Normal(note, 2)
+                                } else {
+                                    write!(s, "{note}{accidental}{duration}{note}1").unwrap();
+                                    Normal(symbol, 1)
+                                }
+                            }
+                        },
+                    }
+                }
             }
 
-            f(&source_folder, &target_folder);
-            // umkansanize(&source_folder, &target_folder);
-        })
+            match note {
+                Normal(note, duration) => write!(s, "{note}{duration}"),
+                Accidental(note, duration, accidental) => {
+                    write!(s, "{note}{accidental}{duration}")
+                }
+                Unknown(note, d, accidental) => write!(s, "{note}{accidental}{d}{note}1"),
+                _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
+            }
+            .unwrap();
+        });
+    }
+
+    // TODO: find biggest file
+
+    #[bench]
+    fn translation_02(bencher: &mut Bencher) {
+        enum Note {
+            None,
+            Normal,
+            Accidental,
+            Unknown,
+        }
+
+        let path =
+            Path::new("D:/university/python/hw4-rust/workdir/test10/0/03/032/0320/03201/0.txt");
+
+        let score: Vec<_> = read(path)
+            .unwrap()
+            .iter()
+            .map(|byte| match byte {
+                10 => '\n',
+                32 => 'P',
+                43 => '#',
+                45 => 'b',
+                byte => (byte + 17) as char,
+            })
+            .collect();
+
+        bencher.iter(|| {
+            let mut duration = 0;
+            let mut v = '0';
+            let mut d = 0;
+            let mut a = '0';
+            let mut note = Note::None;
+            let mut s = String::new();
+
+            // if symbol != '#' && symbol != 'b' {
+            //     duration += 1;
+            // }
+
+            for staff in score.split(|char| char == &'\n') {
+                for &symbol in staff.iter().rev() {
+                    match symbol {
+                        '#' | 'b' => duration += 1,
+                        _ => (),
+                    }
+
+                    note = match note {
+                        Note::None => {
+                            v = symbol;
+                            d = 1;
+                            Note::Normal
+                        }
+                        Note::Normal => match symbol {
+                            '#' | 'b' => {
+                                if d > 1 {
+                                    write!(s, "{v}{}", d - 1).unwrap();
+                                }
+                                d = 1;
+                                a = symbol;
+                                Note::Accidental
+                            }
+                            _ => {
+                                if symbol == v {
+                                    d += 1;
+                                    Note::Normal
+                                } else {
+                                    write!(s, "{v}{d}").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                        },
+                        Note::Accidental => {
+                            if symbol == v {
+                                Note::Unknown
+                            } else {
+                                write!(s, "{v}{a}{d}").unwrap();
+                                v = symbol;
+                                d = 1;
+                                Note::Normal
+                            }
+                        }
+                        Note::Unknown => match symbol {
+                            '#' | 'b' => {
+                                if symbol != a {
+                                    write!(s, "{v}{a}{d}").unwrap();
+                                    d = 1;
+                                    a = symbol;
+                                    Note::Accidental
+                                } else {
+                                    d += 1;
+                                    Note::Accidental
+                                }
+                            }
+                            _ => {
+                                if symbol == v {
+                                    write!(s, "{v}{a}{d}").unwrap();
+                                    d = 2;
+                                    Note::Normal
+                                } else {
+                                    write!(s, "{v}{a}{d}{v}1").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                        },
+                    }
+                }
+            }
+
+            match note {
+                Note::Normal => write!(s, "{v}{d}"),
+                Note::Accidental => {
+                    write!(s, "{v}{a}{d}")
+                }
+                Note::Unknown => write!(s, "{v}{a}{d}{v}1"),
+                _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
+            }
+            .unwrap();
+        });
+    }
+
+    #[bench]
+    fn translation_03(bencher: &mut Bencher) {
+        enum Note {
+            None,
+            Normal,
+            Accidental,
+            Unknown,
+        }
+
+        let path =
+            Path::new("D:/university/python/hw4-rust/workdir/test10/0/03/032/0320/03201/0.txt");
+
+        let score: Vec<_> = read(path)
+            .unwrap()
+            .iter()
+            .map(|byte| match byte {
+                10 => '\n',
+                32 => 'P',
+                43 => '#',
+                45 => 'b',
+                byte => (byte + 17) as char,
+            })
+            .collect();
+
+        bencher.iter(|| {
+            let mut duration = 0;
+            let mut v = '0';
+            let mut d = 0;
+            let mut a = '0';
+            let mut note = Note::None;
+            let mut s = String::new();
+
+            for staff in score.split(|char| char == &'\n') {
+                for &symbol in staff.iter().rev() {
+                    note = match symbol {
+                        '#' | 'b' => {
+                            duration += 1;
+                            match note {
+                                Note::Normal => {
+                                    if d > 1 {
+                                        write!(s, "{v}{}", d - 1).unwrap();
+                                    }
+                                    d = 1;
+                                    a = symbol;
+                                    Note::Accidental
+                                }
+                                Note::Unknown => {
+                                    if symbol != a {
+                                        write!(s, "{v}{a}{d}").unwrap();
+                                        d = 1;
+                                        a = symbol;
+                                        Note::Accidental
+                                    } else {
+                                        d += 1;
+                                        Note::Accidental
+                                    }
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        _ => match note {
+                            Note::None => {
+                                v = symbol;
+                                d = 1;
+                                Note::Normal
+                            }
+                            Note::Normal => {
+                                if symbol == v {
+                                    d += 1;
+                                    Note::Normal
+                                } else {
+                                    write!(s, "{v}{d}").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                            Note::Accidental => {
+                                if symbol == v {
+                                    Note::Unknown
+                                } else {
+                                    write!(s, "{v}{a}{d}").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                            Note::Unknown => {
+                                if symbol == v {
+                                    write!(s, "{v}{a}{d}").unwrap();
+                                    d = 2;
+                                    Note::Normal
+                                } else {
+                                    write!(s, "{v}{a}{d}{v}1").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                        },
+                    };
+                }
+            }
+
+            match note {
+                Note::Normal => write!(s, "{v}{d}"),
+                Note::Accidental => {
+                    write!(s, "{v}{a}{d}")
+                }
+                Note::Unknown => write!(s, "{v}{a}{d}{v}1"),
+                _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
+            }
+            .unwrap();
+        });
+    }
+
+    #[bench]
+    fn translation_04(bencher: &mut Bencher) {
+        enum Note {
+            None,
+            Normal,
+            Accidental,
+            Unknown,
+        }
+
+        let path =
+            Path::new("D:/university/python/hw4-rust/workdir/test10/0/03/032/0320/03201/0.txt");
+
+        let score: Vec<_> = read(path)
+            .unwrap()
+            .iter()
+            .map(|byte| match byte {
+                10 => '\n',
+                32 => 'P',
+                43 => '#',
+                45 => 'b',
+                byte => (byte + 17) as char,
+            })
+            .collect();
+
+        bencher.iter(|| {
+            let mut duration = 0;
+            let mut v = '0';
+            let mut d = 0;
+            let mut a = '0';
+            let mut note = Note::None;
+            let mut s = String::new();
+
+            for staff in score.split(|char| char == &'\n') {
+                for &symbol in staff.iter().rev() {
+                    note = match symbol {
+                        '#' | 'b' => {
+                            duration += 1;
+
+                            match note {
+                                Note::Normal => {
+                                    if d > 1 {
+                                        write!(s, "{v}{}", d - 1).unwrap();
+                                    }
+                                    d = 1;
+                                    a = symbol;
+                                    Note::Accidental
+                                }
+                                Note::Unknown => {
+                                    if symbol != a {
+                                        write!(s, "{v}{a}{d}").unwrap();
+                                        d = 1;
+                                        a = symbol;
+                                        Note::Accidental
+                                    } else {
+                                        d += 1;
+                                        Note::Accidental
+                                    }
+                                }
+                                _ => unreachable!(),
+                            }
+                        }
+                        _ => match note {
+                            Note::None => {
+                                v = symbol;
+                                d = 1;
+                                Note::Normal
+                            }
+                            Note::Normal => {
+                                if symbol == v {
+                                    d += 1;
+                                    Note::Normal
+                                } else {
+                                    write!(s, "{v}{d}").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                            Note::Accidental => {
+                                if symbol == v {
+                                    Note::Unknown
+                                } else {
+                                    write!(s, "{v}{a}{d}").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                            Note::Unknown => {
+                                if symbol == v {
+                                    write!(s, "{v}{a}{d}").unwrap();
+                                    d = 2;
+                                    Note::Normal
+                                } else {
+                                    write!(s, "{v}{a}{d}{v}1").unwrap();
+                                    v = symbol;
+                                    d = 1;
+                                    Note::Normal
+                                }
+                            }
+                        },
+                    };
+                }
+            }
+
+            match note {
+                Note::Normal => write!(s, "{v}{d}"),
+                Note::Accidental => {
+                    write!(s, "{v}{a}{d}")
+                }
+                Note::Unknown => write!(s, "{v}{a}{d}{v}1"),
+                _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
+            }
+            .unwrap();
+        });
+    }
+
+    #[bench]
+    fn translation_05(bencher: &mut Bencher) {
+        enum Note {
+            None,
+            Normal,
+            Accidental,
+            Unknown,
+        }
+
+        let path =
+            Path::new("D:/university/python/hw4-rust/workdir/test10/0/03/032/0320/03201/0.txt");
+
+        let score: Vec<_> = read(path)
+            .unwrap()
+            .iter()
+            .map(|byte| match byte {
+                10 => '\n',
+                32 => 'P',
+                43 => '#',
+                45 => 'b',
+                byte => (byte + 17) as char,
+            })
+            .collect();
+
+        bencher.iter(|| {
+            let mut duration = 0;
+            let mut v = '0';
+            let mut d = 0;
+            let mut a = '0';
+            let mut note = Note::None;
+            let mut s = String::new();
+
+            for staff in score.split(|char| char == &'\n') {
+                for &symbol in staff.iter().rev() {
+                    note = if symbol == v {
+                        match note {
+                            Note::Normal => {
+                                d += 1;
+                                Note::Normal
+                            }
+                            Note::Accidental => Note::Unknown,
+                            Note::Unknown => {
+                                write!(s, "{v}{a}{d}").unwrap();
+                                d = 2;
+                                Note::Normal
+                            }
+                            _ => unreachable!(),
+                        }
+                    } else {
+                        match symbol {
+                            '#' | 'b' => {
+                                duration += 1;
+
+                                match note {
+                                    Note::Normal => {
+                                        if d > 1 {
+                                            write!(s, "{v}{}", d - 1).unwrap();
+                                        }
+                                        d = 1;
+                                        a = symbol;
+                                    }
+                                    Note::Unknown => {
+                                        if symbol != a {
+                                            write!(s, "{v}{a}{d}").unwrap();
+                                            d = 1;
+                                            a = symbol;
+                                        } else {
+                                            d += 1;
+                                        }
+                                    }
+                                    _ => unreachable!(),
+                                }
+                                Note::Accidental
+                            }
+                            _ => {
+                                match note {
+                                    Note::Normal => write!(s, "{v}{d}"),
+                                    Note::Accidental => write!(s, "{v}{a}{d}"),
+                                    Note::Unknown => write!(s, "{v}{a}{d}{v}1"),
+                                    Note::None => Ok(()),
+                                }
+                                .unwrap();
+
+                                v = symbol;
+                                d = 1;
+                                Note::Normal
+                            }
+                        }
+                    }
+                }
+            }
+
+            match note {
+                Note::Normal => write!(s, "{v}{d}"),
+                Note::Accidental => {
+                    write!(s, "{v}{a}{d}")
+                }
+                Note::Unknown => write!(s, "{v}{a}{d}{v}1"),
+                _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
+            }
+            .unwrap();
+        });
     }
 
     #[bench]
@@ -176,7 +717,8 @@ mod tests {
 
     #[bench]
     fn separation_00(bencher: &mut Bencher) {
-        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        // let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        let source_folder = Path::new("D:/university/python/hw4-rust/workdir/test03/");
 
         let index = read_to_string(source_folder.join("index.txt")).unwrap();
 
@@ -189,7 +731,8 @@ mod tests {
 
     #[bench]
     fn separation_01(bencher: &mut Bencher) {
-        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        // let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        let source_folder = Path::new("D:/university/python/hw4-rust/workdir/test03/");
 
         let index = read_to_string(source_folder.join("index.txt")).unwrap();
 
@@ -202,7 +745,8 @@ mod tests {
 
     #[bench]
     fn separation_02(bencher: &mut Bencher) {
-        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        // let source_folder = path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        let source_folder = Path::new("D:/university/python/hw4-rust/workdir/test03/");
 
         let index = read_to_string(source_folder.join("index.txt")).unwrap();
 
@@ -218,7 +762,8 @@ mod tests {
 
     #[bench]
     fn separation_03(bencher: &mut Bencher) {
-        let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        // let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        let source_folder = Path::new("D:/university/python/hw4-rust/workdir/test03/");
 
         let index = read_to_string(source_folder.join("index.txt")).unwrap();
 
@@ -227,6 +772,42 @@ mod tests {
                 line.strip_prefix('"')
                     .and_then(|s| s.strip_suffix('"').and_then(|s| s.split_once("\" \"")))
             }) {}
+        })
+    }
+
+    #[bench]
+    fn separation_04(bencher: &mut Bencher) {
+        // let source_folder = Path::new("/home/cicio/projects/keras-library/workdir/test03/");
+        let source_folder = Path::new("D:/university/python/hw4-rust/workdir/test03/");
+
+        let mut index = read_to_string(source_folder.join("index.txt")).unwrap();
+        index.pop();
+
+        bencher.iter(|| {
+            for _x in index
+                .split('\n')
+                .filter_map(|line| line[1..line.len() - 1].split_once("\" \""))
+            // line.trim_matches('"').split_once("\" \"")
+            {}
+        })
+    }
+
+    fn run_on_folder<'a>(
+        test_name: &str,
+        bencher: &mut Bencher,
+        f: &dyn Fn(&Path, &Path) -> HashMap<&'a str, i32>,
+    ) {
+        let workdir = Path::new("workdir");
+        let source_folder = workdir.join(test_name);
+        let target_folder = workdir.join(format!("{test_name}.out"));
+
+        bencher.iter(|| {
+            if target_folder.exists() {
+                remove_dir_all(&target_folder).expect("Couldn't remove target_folder");
+            }
+
+            f(&source_folder, &target_folder);
+            // umkansanize(&source_folder, &target_folder);
         })
     }
 
