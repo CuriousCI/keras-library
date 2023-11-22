@@ -34,14 +34,14 @@ mod tests {
             .collect();
 
         bencher.iter(|| {
-            let mut duration = 0;
+            let mut _duration = 0;
             let mut note = None;
             let mut s = String::new();
 
             for staff in score.split(|char| char == &'\n') {
                 for &symbol in staff.iter().rev() {
                     if symbol != '#' && symbol != 'b' {
-                        duration += 1;
+                        _duration += 1;
                     }
 
                     note = match note {
@@ -133,7 +133,7 @@ mod tests {
             .collect();
 
         bencher.iter(|| {
-            let mut duration = 0;
+            let mut _duration = 0;
             let mut v = '0';
             let mut d = 0;
             let mut a = '0';
@@ -147,7 +147,7 @@ mod tests {
             for staff in score.split(|char| char == &'\n') {
                 for &symbol in staff.iter().rev() {
                     match symbol {
-                        '#' | 'b' => duration += 1,
+                        '#' | 'b' => _duration += 1,
                         _ => (),
                     }
 
@@ -254,7 +254,7 @@ mod tests {
             .collect();
 
         bencher.iter(|| {
-            let mut duration = 0;
+            let mut _duration = 0;
             let mut v = '0';
             let mut d = 0;
             let mut a = '0';
@@ -265,7 +265,7 @@ mod tests {
                 for &symbol in staff.iter().rev() {
                     note = match symbol {
                         '#' | 'b' => {
-                            duration += 1;
+                            _duration += 1;
                             match note {
                                 Note::Normal => {
                                     if d > 1 {
@@ -370,7 +370,7 @@ mod tests {
             .collect();
 
         bencher.iter(|| {
-            let mut duration = 0;
+            let mut _duration = 0;
             let mut v = '0';
             let mut d = 0;
             let mut a = '0';
@@ -381,7 +381,7 @@ mod tests {
                 for &symbol in staff.iter().rev() {
                     note = match symbol {
                         '#' | 'b' => {
-                            duration += 1;
+                            _duration += 1;
 
                             match note {
                                 Note::Normal => {
@@ -487,7 +487,7 @@ mod tests {
             .collect();
 
         bencher.iter(|| {
-            let mut duration = 0;
+            let mut _duration = 0;
             let mut v = '0';
             let mut d = 0;
             let mut a = '0';
@@ -513,7 +513,7 @@ mod tests {
                     } else {
                         match symbol {
                             '#' | 'b' => {
-                                duration += 1;
+                                _duration += 1;
 
                                 match note {
                                     Note::Normal => {
@@ -795,7 +795,7 @@ mod tests {
     fn run_on_folder<'a>(
         test_name: &str,
         bencher: &mut Bencher,
-        f: &dyn Fn(&Path, &Path) -> HashMap<&'a str, i32>,
+        f: &dyn Fn(&Path, &Path) -> HashMap<String, i32>,
     ) {
         let workdir = Path::new("workdir");
         let source_folder = workdir.join(test_name);
@@ -975,7 +975,7 @@ mod tests {
             remove_dir_all(&target_folder).expect("Couldn't remove target_folder")
         }
 
-        umkansanize(&source_folder, &target_folder);
+        crate::thread::pool::umkansanize(&source_folder, &target_folder);
 
         let index = read_to_string(source_folder.join("index.txt"))
             .unwrap()

@@ -16,7 +16,7 @@ enum Note {
 
 use Note::*;
 
-pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'a str, i32> {
+pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
     let index = read_to_string(source_folder.join("index.txt")).unwrap();
 
     let mut songs = vec![];
