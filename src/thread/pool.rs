@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Write;
 use std::fs::{create_dir_all, read, read_to_string, write};
 use std::path::Path;
 use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 
 enum Note {
@@ -19,6 +21,9 @@ static POOL_SIZE: usize = 12;
 pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'a str, i32> {
     let (trx, rrx) = channel(); // TODO: Find a better name
     let mut channels = vec![]; // TODO: I'd rather not have this one
+                               // Use join somehow?
+                               // Split into sections, and assign each thread a section (copying
+                               // could be hard?
 
     for _ in 0..POOL_SIZE {
         let (tx, rx) = channel();
@@ -78,12 +83,12 @@ pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'
                                             accidental = symbol;
                                         }
                                         Unknown => {
-                                            if symbol != accidental {
+                                            if symbol == accidental {
+                                                duration += 1;
+                                            } else {
                                                 write!(s, "{note}{accidental}{duration}").unwrap();
                                                 duration = 1;
                                                 accidental = symbol;
-                                            } else {
-                                                duration += 1;
                                             }
                                         }
                                         _ => unreachable!(),
@@ -111,9 +116,7 @@ pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'
 
                 match note_type {
                     Normal => write!(s, "{note}{duration}"),
-                    Accidental => {
-                        write!(s, "{note}{accidental}{duration}")
-                    }
+                    Accidental => write!(s, "{note}{accidental}{duration}"),
                     Unknown => write!(s, "{note}{accidental}{duration}{note}1"),
                     _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
                 }
@@ -155,10 +158,182 @@ pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'
             .send((title.to_owned(), file.to_owned()))
             .unwrap();
     }
+    // .next_chunk()
 
     // TODO: cleaner drop, without explicitly dropping maybe?
     drop(trx);
     drop(channels);
+
+    let mut songs: Vec<_> = rrx.iter().collect();
+    songs.sort_unstable_by_key(|(title, duration)| (-duration, title.to_owned()));
+
+    let mut s = String::new();
+    for (title, duration) in songs.iter() {
+        writeln!(s, "\"{title}\" {duration}").unwrap();
+    }
+    write(target_folder.join("index.txt"), s).unwrap();
+
+    HashMap::new()
+}
+
+pub fn umkansanize_chunked<'a>(
+    source_folder: &Path,
+    target_folder: &Path,
+) -> HashMap<&'a str, i32> {
+    // let mut channels = vec![]; // TODO: I'd rather not have this one
+    // Use join somehow?
+    // Split into sections, and assign each thread a section (copying
+    // could be hard?
+    // TODO: Find a better name
+
+    let (trx, rrx) = channel();
+
+    let index = Arc::new(read_to_string(source_folder.join("index.txt")).unwrap());
+
+    // index
+    let songs = Arc::new(
+        Arc::clone(&index)
+            .split('\n')
+            .filter_map(|line| {
+                line.strip_prefix('"')
+                    .and_then(|s| s.strip_suffix('"').and_then(|s| s.split_once("\" \"")))
+            })
+            .collect::<Vec<_>>(),
+    );
+
+    let idx = Arc::new(Mutex::new(0 as usize));
+
+    // let chunk_size = songs.len() / POOL_SIZE;
+    // songs.chunks_exact(chunk_size).collect();
+
+    for _ in 0..POOL_SIZE {
+        let trx = trx.to_owned();
+        let source_folder = source_folder.to_owned();
+        let target_folder = target_folder.to_owned();
+
+        let songs = Arc::clone(&songs);
+        let idx = Arc::clone(&idx);
+
+        spawn(move || {
+            loop {
+                let mut guard = idx.lock().unwrap();
+                if *guard >= songs.len() {
+                    break;
+                }
+                let (title, file): (&str, &str) = songs[*guard];
+                *guard += 1;
+
+                let score: Vec<_> = read(source_folder.join(&file))
+                    .unwrap()
+                    .iter()
+                    .map(|byte| match byte {
+                        10 => '\n',
+                        32 => 'P',
+                        43 => '#',
+                        45 => 'b',
+                        byte => (byte + 17) as char,
+                    })
+                    .collect();
+
+                let mut song_duration = 0;
+                let mut note = '0';
+                let mut accidental = '0';
+                let mut duration = 0;
+                let mut note_type = None;
+                let mut s = String::new();
+
+                for staff in score.split(|char| char == &'\n') {
+                    for &symbol in staff.iter().rev() {
+                        note_type = if symbol == note {
+                            match note_type {
+                                Normal => {
+                                    duration += 1;
+                                    Normal
+                                }
+                                Accidental => Unknown,
+                                Unknown => {
+                                    write!(s, "{note}{accidental}{duration}").unwrap();
+                                    duration = 2;
+                                    Normal
+                                }
+                                _ => unreachable!(),
+                            }
+                        } else {
+                            match symbol {
+                                '#' | 'b' => {
+                                    song_duration += 1;
+
+                                    match note_type {
+                                        Normal => {
+                                            if duration > 1 {
+                                                write!(s, "{note}{}", duration - 1).unwrap();
+                                            }
+
+                                            duration = 1;
+                                            accidental = symbol;
+                                        }
+                                        Unknown => {
+                                            if symbol == accidental {
+                                                duration += 1;
+                                            } else {
+                                                write!(s, "{note}{accidental}{duration}").unwrap();
+                                                duration = 1;
+                                                accidental = symbol;
+                                            }
+                                        }
+                                        _ => unreachable!(),
+                                    };
+
+                                    Accidental
+                                }
+                                _ => {
+                                    match note_type {
+                                        None => Ok(()),
+                                        Normal => write!(s, "{note}{duration}"),
+                                        Accidental => write!(s, "{note}{accidental}{duration}"),
+                                        Unknown => {
+                                            write!(s, "{note}{accidental}{duration}{note}1")
+                                        }
+                                    }
+                                    .unwrap();
+
+                                    note = symbol;
+                                    duration = 1;
+                                    Normal
+                                }
+                            }
+                        }
+                    }
+                }
+
+                match note_type {
+                    Normal => write!(s, "{note}{duration}"),
+                    Accidental => write!(s, "{note}{accidental}{duration}"),
+                    Unknown => write!(s, "{note}{accidental}{duration}{note}1"),
+                    _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
+                }
+                .unwrap();
+
+                let path = target_folder.join(&file);
+                let path = path.parent().unwrap();
+                if !path.exists() {
+                    create_dir_all(path).unwrap();
+                }
+
+                write(
+                    target_folder
+                        .join(file)
+                        .with_file_name(&title)
+                        .with_extension(".txt"),
+                    s,
+                )
+                .unwrap();
+                trx.send((title, song_duration)).unwrap();
+            }
+        });
+    }
+
+    drop(trx);
 
     let mut songs: Vec<_> = rrx.iter().collect();
     songs.sort_unstable_by_key(|(title, duration)| (-duration, title.to_owned()));
@@ -335,4 +510,4 @@ pub fn umkansanize<'a>(source_folder: &Path, target_folder: &Path) -> HashMap<&'
 //     Accidental(char, usize, char),
 //     Unknown(char, usize, char),
 // }
-// let index = read_to_string(source_folder.join("index.txt")).unwrap();
+// let index = rC
