@@ -1,6 +1,6 @@
 # Keras Library _(HW4)_
 
-E la storia di come ho ottimizzato la mia soluzione rendendola **8 volte più veloce**. La soluzione più veloce in classifica impiega **41ms** per eseguire tutti i test, la mia ne impiega **5** ()
+E la storia di come ho ottimizzato la mia soluzione rendendola **8 volte più veloce**. La soluzione più veloce in classifica impiega **41ms** per eseguire tutti i test, la mia ne impiega **5**
 
 <!-- TODO: citare le specifiche delle macchine su cui ho eseguito i test -->
 
