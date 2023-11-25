@@ -314,3 +314,30 @@ test tests::tests::bench_test_07   ... bench:   3,404,194 ns/iter (+/- 214,892)
 test tests::tests::bench_test_08   ... bench:   2,528,947 ns/iter (+/- 340,343)
 test tests::tests::bench_test_09   ... bench:   1,666,374 ns/iter (+/- 170,261)
 test tests::tests::bench_test_10   ... bench:  31,755,653 ns/iter (+/- 2,417,598)
+
+
+
+
+
+// https://doc.rust-lang.org/rust-by-example/std_misc/channels.html
+
+// let source = source_folder.join(&file);
+// let (translation, duration) = scope
+//     .spawn(|| {
+//         translate(
+//             // &read(source_folder.join(&file))
+//             &read(source)
+//                 .unwrap()
+//                 .iter()
+//                 .map(|byte| match byte {
+//                     10 => '\n',
+//                     32 => 'P',
+//                     43 => '#',
+//                     45 => 'b',
+//                     byte => (byte + 17) as char,
+//                 })
+//                 .collect(),
+//         )
+//     })
+//     .join()
+//     .unwrap();

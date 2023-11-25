@@ -22,7 +22,7 @@ pub fn translate(score: &Vec<char>) -> (String, i32) {
     let mut accidental = ' ';
     let mut duration = 0;
     let mut note_type = None;
-    let mut s = String::new();
+    let mut translation = String::new();
 
     for staff in score.split(|char| char == &'\n') {
         for &symbol in staff.iter().rev() {
@@ -36,7 +36,7 @@ pub fn translate(score: &Vec<char>) -> (String, i32) {
                     }
                     Accidental => Unknown,
                     Unknown => {
-                        write!(s, "{note}{accidental}{duration}").unwrap();
+                        write!(translation, "{note}{accidental}{duration}").unwrap();
                         duration = 2;
                         Normal
                     }
@@ -48,7 +48,7 @@ pub fn translate(score: &Vec<char>) -> (String, i32) {
                         match note_type {
                             Normal => {
                                 if duration > 1 {
-                                    write!(s, "{note}{}", duration - 1).unwrap();
+                                    write!(translation, "{note}{}", duration - 1).unwrap();
                                 }
 
                                 duration = 1;
@@ -58,7 +58,7 @@ pub fn translate(score: &Vec<char>) -> (String, i32) {
                                 if symbol == accidental {
                                     duration += 1;
                                 } else {
-                                    write!(s, "{note}{accidental}{duration}").unwrap();
+                                    write!(translation, "{note}{accidental}{duration}").unwrap();
                                     duration = 1;
                                     accidental = symbol;
                                 }
@@ -73,9 +73,9 @@ pub fn translate(score: &Vec<char>) -> (String, i32) {
 
                         match note_type {
                             None => Ok(()),
-                            Normal => write!(s, "{note}{duration}"),
-                            Accidental => write!(s, "{note}{accidental}{duration}"),
-                            Unknown => write!(s, "{note}{accidental}{duration}{note}1"),
+                            Normal => write!(translation, "{note}{duration}"),
+                            Accidental => write!(translation, "{note}{accidental}{duration}"),
+                            Unknown => write!(translation, "{note}{accidental}{duration}{note}1"),
                         }
                         .unwrap();
 
@@ -89,14 +89,14 @@ pub fn translate(score: &Vec<char>) -> (String, i32) {
     }
 
     match note_type {
-        Normal => write!(s, "{note}{duration}"),
-        Accidental => write!(s, "{note}{accidental}{duration}"),
-        Unknown => write!(s, "{note}{accidental}{duration}{note}1"),
+        Normal => write!(translation, "{note}{duration}"),
+        Accidental => write!(translation, "{note}{accidental}{duration}"),
+        Unknown => write!(translation, "{note}{accidental}{duration}{note}1"),
         _ => unreachable!(), // _ => Ok(()), // _ => unreachable!(),
     }
     .unwrap();
 
-    (s, song_duration)
+    (translation, song_duration)
 }
 
 pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String, i32> {
@@ -170,26 +170,3 @@ pub fn umkansanize(source_folder: &Path, target_folder: &Path) -> HashMap<String
 
     songs.iter().map(ToOwned::to_owned).collect()
 }
-
-// https://doc.rust-lang.org/rust-by-example/std_misc/channels.html
-
-// let source = source_folder.join(&file);
-// let (translation, duration) = scope
-//     .spawn(|| {
-//         translate(
-//             // &read(source_folder.join(&file))
-//             &read(source)
-//                 .unwrap()
-//                 .iter()
-//                 .map(|byte| match byte {
-//                     10 => '\n',
-//                     32 => 'P',
-//                     43 => '#',
-//                     45 => 'b',
-//                     byte => (byte + 17) as char,
-//                 })
-//                 .collect(),
-//         )
-//     })
-//     .join()
-//     .unwrap();

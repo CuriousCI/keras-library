@@ -5,6 +5,7 @@ mod tests {
     use std::collections::HashMap;
     use std::fmt::Write;
     use std::fs::read;
+    use std::hint::black_box;
     use test::Bencher;
 
     enum Note {
@@ -37,6 +38,8 @@ mod tests {
             let mut _duration = 0;
             let mut note = None;
             let mut s = String::new();
+
+            black_box(_duration);
 
             for staff in score.split(|char| char == &'\n') {
                 for &symbol in staff.iter().rev() {
@@ -140,9 +143,7 @@ mod tests {
             let mut note = Note::None;
             let mut s = String::new();
 
-            // if symbol != '#' && symbol != 'b' {
-            //     duration += 1;
-            // }
+            black_box(_duration);
 
             for staff in score.split(|char| char == &'\n') {
                 for &symbol in staff.iter().rev() {
@@ -260,6 +261,8 @@ mod tests {
             let mut a = '0';
             let mut note = Note::None;
             let mut s = String::new();
+
+            black_box(_duration);
 
             for staff in score.split(|char| char == &'\n') {
                 for &symbol in staff.iter().rev() {
@@ -493,6 +496,8 @@ mod tests {
             let mut a = '0';
             let mut note = Note::None;
             let mut s = String::new();
+
+            black_box(_duration);
 
             for staff in score.split(|char| char == &'\n') {
                 for &symbol in staff.iter().rev() {
