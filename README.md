@@ -298,7 +298,7 @@ Quest'ultima parte è interessante perché in Rust si fa con i `channel()`, [can
 
 > La sintassi `move || {}` dentro a `thread::spawn()` non fa altro che creare quella che in Python è una **lambda** _(sono simili, ma non la stessa cosa, dato che `|| {}` si comporta come una funzione normale)_
 
-### ...c'è un pezzo da pagare...
+### ...c'è un prezzo da pagare...
 
 Ebbene, creare **600 thread** non è gratis. Di fatto il costo è così **alto** su Linux che la versione con i thread ci impiega lo stesso tempo della versione senza thread sul `test03`. La soluzione è facile: basta creare un numero fisso di thread, e distribuire le varie canzoni fra questi thread. Facendo qualche test si scopre che da un certo punto in poi la velocità inizia a peggiorare (12 thread per la mia architettura). 
 
