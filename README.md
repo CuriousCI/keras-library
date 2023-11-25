@@ -452,7 +452,7 @@ write(target_folder.join("index.txt"), s).unwrap();
 songs.iter().map(ToOwned::to_owned).collect()
 ```
 
-Finalmente abbiamo raggiunto l'ultimo blocco! E ci sono solo un paio di cose divertenti da spiegare `sort_unstable_by_key` non è **unstable** perché sta per esplodere, ma perché non garantisce l'ordine relativo... mi spiego meglio:
+Finalmente abbiamo raggiunto l'ultimo blocco! E ci sono solo un paio di cose divertenti da spiegare: `sort_unstable_by_key` non è **unstable** perché sta per esplodere 💣, ma perché non garantisce l'ordine relativo... Mi spiego meglio:
 
 Se voglio ordinare la lista `['Banana', 'Abete', 'Alce', 'Carciofo']` solo usando la prima lettera di ogni parola, un sort **stable** **garantisce** che l'**ordine relativo** di due elementi uguali sia **mantenuto** (`'Abete'` e `'Alce'` hanno chiavi uguali siccome iniziano entrambe con `'A'`), quindi `['Abete', 'Alce', 'Banana', 'Carciofo']` è l'unico ordine valido. Se l'algoritmo è **unstable**, anche `['Alce', 'Abete', 'Banana', 'Carciofo']` è un ordinamento valido, visto che `'Alce'` e `'Abete'` iniziano entrambe con la `'A'`, e l'algoritmo non garantisce che l'ordine relativo sia mantenuto _(sono tutte cose che si vedono nel corso di algoritmi)._ In questo caso ha senso usare un algoritmo di ordinamento **unstable** dato che non capita che due canzoni abbiano lo stesso titolo (visto che nel dizionario le chiavi dovrebbero essere tutte diverse) ed è leggermente più veloce rispetto a quello **stable** nel caso medio.
 
